@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+openai
+openai-agents
+asyncpg
+chromadb
+httpx
+tiktoken
+pytest
+pytest-asyncio
