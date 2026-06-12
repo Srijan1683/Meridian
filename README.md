@@ -68,246 +68,45 @@ New concepts include ChromaDB, embedding models, RAG pipelines, WebSockets, Perp
 
 ## Architecture
 
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                         FastAPI Server                               │
-│                                                                      │
-│  [Research Routes]  [Session Routes]  [Memory Routes]  [WebSocket]  │
-│         │                 │                 │                │       │
-│  ┌──────┴─────────────────┴─────────────────┴────────────────┴────┐ │
-│  │                  Agent (single, mode-driven)                    │ │
-│  │                                                                  │ │
-│  │  Normal mode: quick search and answer                           │ │
-│  │  Deep mode: iterative research with citations                   │ │
-│  │                                                                  │ │
-│  │  Tools: Perplexity web search                                   │ │
-│  │  Context: memory retrieval, session history, token budget        │ │
-│  └──────────────────────────────┬───────────────────────────────────┘ │
-│                                 │                                    │
-│  ┌──────────────────────────────┴──────────────────────────────────┐ │
-│  │                         Memory Manager                          │ │
-│  │  ┌─────────────────────┐  ┌──────────────────────────────────┐  │ │
-│  │  │ Short-term memory   │  │ Long-term memory                 │  │ │
-│  │  │ per-session vector  │  │ cross-session summaries          │  │ │
-│  │  │ storage             │  │ vector storage                   │  │ │
-│  │  └─────────────────────┘  └──────────────────────────────────┘  │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-│                                                                      │
-│  ChromaDB: short_term_{session_id}, long_term_memory                 │
-│  PostgreSQL: sessions, messages, sources, citations, memory_jobs     │
-│  Background workers: summarization and memory consolidation          │
-└──────────────────────────────────────────────────────────────────────┘
-```
+Meridian is built around a FastAPI server with routes for research, sessions, memory, sources, and WebSocket streaming.
+
+The research agent is a single mode-driven agent. Normal mode prioritizes quick answers, while deep mode prioritizes thorough iterative research. Both modes use memory retrieval, session history, token budgeting, web search, and source tracking.
+
+The memory system uses ChromaDB for semantic retrieval and PostgreSQL for structured persistence. Background workers summarize completed sessions and store long-term memories for future recall.
 
 ## Research Flow
 
 ### Deep Research
 
-```text
-User asks a complex question
-  │
-  ├─ Mode: deep research
-  ├─ Retrieve short-term and long-term memory
-  ├─ Build agent context from query, memory, history, and token budget
-  ├─ Search from multiple angles
-  ├─ Evaluate agreement, disagreement, and gaps
-  ├─ Run follow-up searches
-  ├─ Synthesize answer with inline citations
-  ├─ Stream progress over WebSocket
-  └─ Store messages, sources, citations, and memory artifacts
-```
+In deep research mode, the agent retrieves short-term and long-term memory, searches from multiple angles, evaluates sources, runs follow-up searches, and synthesizes a cited answer. The response can be streamed over WebSocket while messages, sources, citations, and memory artifacts are stored in the background.
 
 ### Normal Research
 
-```text
-User asks a straightforward question
-  │
-  ├─ Mode: normal
-  ├─ Retrieve relevant memory
-  ├─ Run one or two searches
-  ├─ Return a concise cited answer
-  └─ Store the interaction in short-term memory
-```
-
-## Data Models
-
-### Research Models
-
-```python
-class ResearchMode(str, Enum):
-    NORMAL = "normal"
-    DEEP = "deep"
-
-
-class ResearchRequest(BaseModel):
-    session_id: UUID | None = None
-    query: str
-    mode: ResearchMode = ResearchMode.NORMAL
-
-
-class Source(BaseModel):
-    source_id: UUID
-    url: str
-    title: str
-    snippet: str
-    source_type: Literal["web", "paper", "article", "forum", "documentation"]
-    retrieved_at: datetime
-    search_query: str
-    credibility_note: str | None = None
-
-
-class ResearchResponse(BaseModel):
-    session_id: UUID
-    mode: ResearchMode
-    response: str
-    sources: list[Source]
-    memory_context: MemoryContext
-    token_usage: TokenBudget
-```
-
-### Memory Models
-
-```python
-class MemoryType(str, Enum):
-    SHORT_TERM = "short_term"
-    LONG_TERM = "long_term"
-
-
-class MemoryEntry(BaseModel):
-    memory_id: UUID
-    memory_type: MemoryType
-    session_id: UUID
-    content: str
-    metadata: dict
-    similarity_score: float | None = None
-    created_at: datetime
-
-
-class MemoryContext(BaseModel):
-    short_term_retrieved: int
-    long_term_retrieved: int
-    memories: list[MemoryEntry]
-    retrieval_time_ms: int
-
-
-class SessionSummary(BaseModel):
-    session_id: UUID
-    summary: str
-    key_topics: list[str]
-    key_findings: list[str]
-    sources_referenced: list[str]
-    generated_at: datetime
-
-
-class MemoryJobStatus(BaseModel):
-    job_id: UUID
-    session_id: UUID
-    status: Literal["queued", "summarizing", "embedding", "completed", "failed"]
-    created_at: datetime
-    completed_at: datetime | None = None
-```
-
-### WebSocket Models
-
-```python
-class WSMessageType(str, Enum):
-    QUERY = "query"
-    CANCEL = "cancel"
-    SEARCHING = "searching"
-    CONTENT = "content"
-    SOURCE = "source"
-    MEMORY = "memory"
-    DONE = "done"
-    ERROR = "error"
-
-
-class WSMessage(BaseModel):
-    type: WSMessageType
-    data: dict
-    timestamp: datetime
-```
-
-## Database Schema
-
-```sql
-CREATE TABLE sources (
-    source_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-    url TEXT NOT NULL,
-    title TEXT NOT NULL,
-    snippet TEXT NOT NULL,
-    source_type TEXT NOT NULL,
-    search_query TEXT NOT NULL,
-    credibility_note TEXT,
-    retrieved_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_sources_session ON sources(session_id);
-CREATE INDEX idx_sources_url ON sources(url);
-
-CREATE TABLE memory_jobs (
-    job_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-    status TEXT NOT NULL CHECK (
-        status IN ('queued', 'summarizing', 'embedding', 'completed', 'failed')
-    ),
-    summary TEXT,
-    key_topics TEXT[],
-    error TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    completed_at TIMESTAMPTZ
-);
-
-CREATE INDEX idx_memory_jobs_status ON memory_jobs(status);
-
-CREATE TABLE source_citations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    message_id UUID NOT NULL REFERENCES conversation_history(message_id) ON DELETE CASCADE,
-    source_id UUID NOT NULL REFERENCES sources(source_id),
-    citation_index INT NOT NULL,
-    claim_text TEXT NOT NULL
-);
-
-CREATE INDEX idx_citations_message ON source_citations(message_id);
-```
+In normal mode, the agent retrieves relevant memory, runs one or two searches, returns a concise cited answer, and stores the interaction in short-term memory.
 
 ## ChromaDB Collections
 
 ### Short-Term Memory
 
-```python
-short_term = chroma_client.get_or_create_collection(
-    name=f"short_term_{session_id}",
-    metadata={"hnsw:space": "cosine"},
-)
-```
-
 Stores the user query and assistant response for a session.
 
 Metadata includes:
 
-- `session_id`
-- `message_id`
-- `timestamp`
-- `topic_tags`
+- session identifiers
+- message identifiers
+- timestamps
+- topic tags
 
 ### Long-Term Memory
-
-```python
-long_term = chroma_client.get_or_create_collection(
-    name="long_term_memory",
-    metadata={"hnsw:space": "cosine"},
-)
-```
 
 Stores session summaries that can be recalled across future sessions.
 
 Metadata includes:
 
-- `session_id`
-- `key_topics`
-- `key_findings`
-- `summarized_at`
+- session identifiers
+- key topics
+- key findings
+- summarization timestamps
 
 ## API Endpoints
 
@@ -315,47 +114,34 @@ Metadata includes:
 
 | Endpoint | Description |
 | --- | --- |
-| `POST /research` | Submit a non-streaming research query. |
-| `WebSocket /ws/research` | Run streaming research with progress events. |
-
-Example WebSocket query:
-
-```json
-{
-  "type": "query",
-  "data": {
-    "query": "What are the leading theories on consciousness?",
-    "mode": "deep",
-    "session_id": "..."
-  }
-}
-```
+| Research endpoint | Submit a non-streaming research query. |
+| WebSocket research endpoint | Run streaming research with progress events. |
 
 ### Memory
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /sessions/{session_id}/memory` | Get relevant memory context for a session. |
-| `GET /memory/long-term` | Query long-term memory across sessions. |
-| `GET /memory/jobs` | List memory summarization jobs. |
-| `POST /memory/jobs/{session_id}` | Manually trigger memory summarization. |
+| Session memory endpoint | Get relevant memory context for a session. |
+| Long-term memory endpoint | Query long-term memory across sessions. |
+| Memory jobs endpoint | List memory summarization jobs. |
+| Manual memory job endpoint | Manually trigger memory summarization. |
 
 ### Sources
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /sessions/{session_id}/sources` | Return all sources found during a session. |
+| Session sources endpoint | Return all sources found during a session. |
 
 ## Implementation Plan
 
 ### Phase 1: ChromaDB Setup and Embedding Pipeline
 
-Set up ChromaDB in persistent mode, create short-term and long-term collections, and build an embedding service using `text-embedding-3-small`.
+Set up ChromaDB in persistent mode, create short-term and long-term collections, and build an embedding service.
 
 Key tasks:
 
-- Implement `embed_text(text) -> list[float]`.
-- Implement `embed_texts(texts) -> list[list[float]]`.
+- Implement single-text embedding.
+- Implement batch embedding.
 - Chunk long text before embedding.
 - Build similarity retrieval with a relevance threshold.
 - Test semantic retrieval with unrelated and related paragraphs.
@@ -394,31 +180,23 @@ Use one agent with mode-specific prompting:
 
 ### Phase 6: Citation and Source System
 
-Use inline citation markers such as `[1]` and `[2]` in the response text, then include a source list at the end.
+Use inline citation markers in the response text, then include a source list at the end.
 
 Store citation mappings in Postgres:
 
-- `citation_index`
-- `source_id`
-- `claim_text`
+- citation index
+- source identifier
+- claim text
 
 The system should validate that every citation marker maps to a real source.
 
 ### Phase 7: WebSocket Streaming
 
-Use `ws://localhost:8000/ws/research` for streaming research progress.
+Use a WebSocket endpoint for streaming research progress.
 
-Expected event flow:
+Expected event flow: searching, content, source, memory, then done.
 
-```text
-searching -> content -> source -> memory -> done
-```
-
-The client can send a cancel event:
-
-```json
-{ "type": "cancel" }
-```
+The client can send a cancel event to stop research mid-stream.
 
 If the client disconnects, research can continue in the background and store results for later retrieval.
 
