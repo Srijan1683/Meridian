@@ -1,10 +1,9 @@
-from typing import Literal
 from enum import Enum
 
 from pydantic import BaseModel
 from uuid import UUID
-from datetime import datetime
 from app.models.memory import MemoryContext
+from app.models.sources import Source
 
 
 class ResearchMode(str, Enum):
@@ -20,16 +19,6 @@ class ResearchRequest(BaseModel):
     session_id: UUID | None = None
     query: str
     mode: ResearchMode = ResearchMode.NORMAL
-    
-class Source(BaseModel):
-    source_id: UUID
-    url: str
-    title: str
-    snippet: str
-    source_type: Literal["web", "paper", "article", "forum", "documentation"]
-    retrieved_at: datetime
-    search_query: str
-    credibility_note: str | None = None
     
 class ResearchResponse(BaseModel):
     session_id: UUID
