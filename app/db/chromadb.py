@@ -2,8 +2,10 @@ from pathlib import Path
 
 import chromadb
 
+from app.config import settings
 
-CHROMA_PATH = Path("chroma_data")
+
+CHROMA_PATH = Path(settings.chroma_path)
 
 chroma_client = chromadb.PersistentClient(path=str(CHROMA_PATH))
 
