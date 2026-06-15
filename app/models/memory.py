@@ -1,4 +1,5 @@
-from typing import Enum, Literal
+from typing import Literal
+from enum import Enum
 
 from pydantic import BaseModel
 from uuid import UUID
