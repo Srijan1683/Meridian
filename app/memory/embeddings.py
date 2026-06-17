@@ -3,7 +3,10 @@ from openai import AsyncOpenAI
 from app.config import settings
 
 
-client = AsyncOpenAI(api_key=settings.openai_api_key)
+client = AsyncOpenAI(
+    api_key=settings.openai_api_key,
+    base_url=settings.openai_base_url,
+)
 
 
 async def embed_text(text: str) -> list[float]:
@@ -11,8 +14,9 @@ async def embed_text(text: str) -> list[float]:
         model=settings.embedding_model,
         input=text,
     )
-    
+
     return response.data[0].embedding
+
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     response = await client.embeddings.create(
