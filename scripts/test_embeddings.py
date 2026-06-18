@@ -51,6 +51,31 @@ async def main() -> None:
     else:
         raise RuntimeError("Smoke test failed: expected physics result first.")
 
+    filtered_results = await retrieve_similar(
+        collection=collection,
+        query_text="spooky action at a distance",
+        limit=3,
+        min_similarity=0.2,
+    )
+
+    print("\nFiltered results:\n")
+
+    for index, result in enumerate(filtered_results, start=1):
+        print(f"{index}. {result['content']}")
+        print(f"   topic: {result['metadata'].get('topic')}")
+        print(f"   similarity: {result['similarity_score']:.3f}")
+
+    if not filtered_results:
+        raise RuntimeError("Threshold test failed: expected at least one result.")
+
+    if any(result["similarity_score"] < 0.2 for result in filtered_results):
+        raise RuntimeError("Threshold test failed: result below threshold returned.")
+
+    if filtered_results[0]["metadata"].get("topic") != "physics":
+        raise RuntimeError("Threshold test failed: expected physics result first.")
+
+    print("\nThreshold filtering passed.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
