@@ -67,3 +67,20 @@ async def retrieve_similar(
         )
 
     return memories
+
+
+async def delete_memory(
+    collection: Collection,
+    memory_id: str,
+) -> None:
+    collection.delete(ids=[memory_id])
+    
+
+async def delete_memories(
+    collection: Collection,
+    memory_ids: list[str],
+) -> None:
+    if not memory_ids:
+        return
+    
+    collection.delete(ids=memory_ids)
