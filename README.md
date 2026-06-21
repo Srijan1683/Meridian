@@ -74,6 +74,12 @@ The research agent is a single mode-driven agent. Normal mode prioritizes quick 
 
 The memory system uses ChromaDB for semantic retrieval and PostgreSQL for structured persistence. Background workers summarize completed sessions and store long-term memories for future recall.
 
+## Current Status
+
+The project currently has the embedding and short-term memory foundation in place. ChromaDB is configured for persistent vector storage, embeddings support single-text and batch usage, and the memory layer can store, retrieve, filter, and delete session memories.
+
+Short-term memory smoke tests cover bootstrap behavior, semantic retrieval, and context formatting. The next major step is connecting this memory layer into the research flow before moving on to long-term session summarization.
+
 ## Research Flow
 
 ### Deep Research
