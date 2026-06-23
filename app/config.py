@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://openrouter.ai/api/v1"
     chroma_path: str = "chroma_data"
     embedding_model: str = "openai/text-embedding-3-small"
+    summary_model: str = "openai/gpt-4o-mini"
 
 
 settings = Settings()
