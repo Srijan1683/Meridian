@@ -31,6 +31,7 @@ class SessionSummary(BaseModel):
     key_topics: list[str]
     key_findings: list[str]
     sources_referenced: list[str]
+    unresolved_questions: list[str] = []
     generated_at: datetime
     
 class MemoryJobStatus(BaseModel):
