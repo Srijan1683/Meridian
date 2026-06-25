@@ -93,12 +93,14 @@ CREATE TABLE memory_jobs (
     key_topics TEXT[],
     key_findings TEXT[],
     sources_referenced TEXT[],
+    unresolved_questions TEXT[],
     error TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_memory_jobs_status ON memory_jobs(status);
+CREATE INDEX idx_memory_jobs_session ON memory_jobs(session_id);
 
 -- Source citations — links sources to claims in responses
 CREATE TABLE source_citations (
