@@ -36,13 +36,15 @@ Extract:
 - key topics
 - key findings
 - sources referenced
+- unresolved questions
 
 Return only valid JSON with this shape:
 {{
     "summary": "short summary of this session",
     "key_topics": ["topic 1", "topic 2"],
     "key_findings": ["finding 1", "finding 2"],
-    "sources_referenced": ["source 1", "source 2"]
+    "sources_referenced": ["source 1", "source 2"],
+    "unresolved_questions": ["question 1", "questions 2"]
 }}
 
 Session transcript:
@@ -80,5 +82,6 @@ async def summarize_session(
         key_topics=data.get("key_topics", []),
         key_findings=data.get("key_findings", []),
         sources_referenced=data.get("sources_referenced", []),
+        unresolved_questions=data.get("unresolved_questions", []),
         generated_at=datetime.now(timezone.utc),
     )
