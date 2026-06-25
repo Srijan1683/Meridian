@@ -10,12 +10,13 @@ def _build_summary_text(
     key_topics: list[str],
     key_findings: list[str],
     sources_referenced: list[str] | None = None,
+    unresolved_questions: list[str] | None = None,
 ) -> str:
     lines = [
-        "Session summary:",
+        "In a previous session, you researched:",
         summary,
         "",
-        "Key topics:",
+        "Main topics:",
         ", ".join(key_topics),
         "",
         "Key findings:",
@@ -31,6 +32,15 @@ def _build_summary_text(
             ]
         )
         
+    if unresolved_questions:
+        lines.extend(
+            [
+                "",
+                "Unresolved questions:",
+                "\n".join(f"- {question}" for question in unresolved_questions),
+            ]
+        )
+        
     return "\n".join(lines)
 
 
@@ -40,6 +50,7 @@ async def store_long_term_memory(
     key_topics: list[str],
     key_findings: list[str],
     sources_referenced: list[str] | None = None,
+    unresolved_questions: list[str] | None = None,
     summary_id: UUID | None = None,
 ) -> str:
     collection = get_long_term_collection()
@@ -50,6 +61,7 @@ async def store_long_term_memory(
         key_findings=key_findings,
         key_topics=key_topics,
         sources_referenced=sources_referenced,
+        unresolved_questions=unresolved_questions,
     )
     
     metadata = {
@@ -58,6 +70,7 @@ async def store_long_term_memory(
         "key_topics": ",".join(key_topics),
         "key_findings": ",".join(key_findings),
         "sources_referenced": ",".join(sources_referenced or []),
+        "unresolved_questions": ",".join(unresolved_questions or []),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "memory_type": "long_term",
     }
