@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     embedding_model: str = "openai/text-embedding-3-small"
     summary_model: str = "openai/gpt-4o-mini"
     database_url: str = "postgresql://localhost/meridian"
-    min_messages_for_auto_summarize: int = 4
+    min_messages_for_auto_summarize: int = 5
 
 
 settings = Settings()
