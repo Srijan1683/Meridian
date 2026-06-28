@@ -5,6 +5,7 @@ from app.api.sessions import router as sessions_router
 
 app = FastAPI(
     title="Meridian",
+    description="Research assistant API with session memory support.",
     version="0.1.0",
 )
 
