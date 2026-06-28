@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.sessions import router as sessions_router
-
+from app.api.research import router as research_router
 
 app = FastAPI(
     title="Meridian",
@@ -10,6 +10,7 @@ app = FastAPI(
 )
 
 app.include_router(sessions_router)
+app.include_router(research_router)
 
 @app.get("/health")
 async def health_check():
