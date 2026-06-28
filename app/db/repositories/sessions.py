@@ -29,7 +29,7 @@ async def list_timed_out_sessions(timeout_minutes: int = 30) -> list[dict]:
         SELECT *
         FROM sessions
         WHERE status = 'active'
-            AND updated_at <= NOW() - ($1::TEXT || ' minutes')::INTERVAL
+            AND updated_at <= NOW() - ($1 * INTERVAL '1 minute')
         """,
         timeout_minutes,
     )
