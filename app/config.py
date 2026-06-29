@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     summary_model: str = "openai/gpt-4o-mini"
     database_url: str = "postgresql://localhost/meridian"
     min_messages_for_auto_summarize: int = 5
+    perplexity_api_key: str
+    perplexity_base_url: str = "https://api.perplexity.ai"
+    perplexity_model: str = "sonar-pro"
 
 
 settings = Settings()
