@@ -32,3 +32,14 @@ class SourceCitation(BaseModel):
     
 class SourceListResponse(BaseModel):
     sources: list[Source]
+    
+class SearchResult(BaseModel):
+    title: str
+    url: str
+    snippet: str
+    source_type: SourceType = SourceType.WEB
+    
+class SearchResponse(BaseModel):
+    answer: str
+    sources: list[SearchResult]
+    citations: list[str] = []
