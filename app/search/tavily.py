@@ -46,8 +46,8 @@ async def search_web(
     }
     
     headers = {
-        "Authorisation": f"Bearer {settings.tavily_api_key}",
-        "Content_Type": "applications/json",
+        "Authorization": f"Bearer {settings.tavily_api_key}",
+        "Content-Type": "applications/json",
     }
     
     url = f"{settings.tavily_base_url.rstrip('/')}/search"
