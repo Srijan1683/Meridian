@@ -47,7 +47,7 @@ async def search_web(
     
     headers = {
         "Authorization": f"Bearer {settings.tavily_api_key}",
-        "Content-Type": "applications/json",
+        "Content-Type": "application/json",
     }
     
     url = f"{settings.tavily_base_url.rstrip('/')}/search"
@@ -62,8 +62,10 @@ async def search_web(
         
     data = response.json()
     
+    sources = _extract_sources(data)
+    
     return SearchResponse(
         answer=data.get("answer") or "",
-        sources=_extract_sources(data),
-        citations=[source.url for source in _extract_sources(data)],
+        sources=sources,
+        citations=[source.url for source in sources],
     )
