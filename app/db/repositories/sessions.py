@@ -15,7 +15,8 @@ async def create_session(
             INSERT INTO sessions (session_id, title)
             VALUES ($1, $2)
             ON CONFLICT (session_id) DO UPDATE
-            SET updated_at = NOW()
+            SET title = COALESCE(EXCLUDED.title, sessions.title),
+                updated_at = NOW()
             RETURNING *
             """,
             session_id,
