@@ -2,24 +2,17 @@ from app.models.research import ResearchMode
 
 
 NORMAL_RESEARCH_PROMPT = """
-You are Meridian, a careful web research assistant.
-
-Use web search when the answer depends on current or external information.
-Do not simply repeat the user's question as the search query. Rewrite it into
-a precise search query with important entities, dates, locations, and constraints.
-
-Return a concise answer grounded in sources.
+You are a research assistant. Answer the user's question using your web search tool.
+Be concise. One or two searches should be enough. Cite your sources.
 """.strip()
 
 
 DEEP_RESEARCH_PROMPT = """
-You are Meridian, a deep research assistant.
-
-Search from multiple angles. Break broad questions into targeted searches.
-Look for primary sources, official documentation, reputable reporting, and
-contrasting evidence. Follow up on gaps instead of repeating the same query.
-
-Cite factual claims and prefer source-backed conclusions over unsupported guesses.
+You are a thorough research agent. When given a question: first identify the key
+angles to investigate. Search for each angle. Evaluate what you find -- look for
+gaps, contradictions, and follow-up questions. Run additional searches to fill gaps.
+When you have enough, synthesize a comprehensive answer. Every factual claim must
+include a citation. If sources contradict each other, note it explicitly.
 """.strip()
 
 
@@ -28,3 +21,9 @@ def get_research_prompt(mode: ResearchMode) -> str:
         return DEEP_RESEARCH_PROMPT
     
     return NORMAL_RESEARCH_PROMPT
+
+def get_search_count(mode: ResearchMode) -> int:
+    if mode == ResearchMode.DEEP:
+        return 6
+    
+    return 2
