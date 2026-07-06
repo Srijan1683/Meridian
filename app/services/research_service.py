@@ -164,13 +164,12 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         sources=sources,
         long_term_context=long_term_context,
     )
-    
 
     return ResearchResponse(
         session_id=session_id,
         mode=request.mode,
-        response= response_text,
-        sources= sources,
+        response=response_text,
+        sources=sources,
         memory_context=MemoryContext(
             short_term_retrieved=0,
             long_term_retrieved=long_term_count,
