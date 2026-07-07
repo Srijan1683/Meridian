@@ -27,3 +27,26 @@ def get_search_count(mode: ResearchMode) -> int:
         return 6
     
     return 2
+
+def get_synthesis_instruction(mode: ResearchMode) -> str:
+    if mode == ResearchMode.DEEP:
+        return """
+Write a comprehensive research answer.
+
+Requirements:
+- Cover the key angles investigated.
+- Mention gaps, uncertainty, or contradictions when present.
+- Every factual claim should include a citation like [1], [2], or [3].
+- Use only the provided sources.
+- Do not invent sources.
+    """.strip()
+    
+    return """
+Write a concise research answer.
+
+Requirements:
+- Answer directly.
+- Include citations like [1] or [2] for factual claims.
+- Use only the provided sources.
+- Do not invent sources.
+""".strip()
