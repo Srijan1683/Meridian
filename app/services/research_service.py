@@ -1,4 +1,10 @@
-from app.agents.prompts import get_research_prompt, get_search_count
+from openai import AsyncOpenAI
+from app.config import settings
+from app.agents.prompts import (
+    get_research_prompt, 
+    get_search_count,
+    get_synthesis_instruction,
+)
 from app.db.repositories.sources import create_sources_for_search
 from app.db.repositories.sessions import create_session
 from app.memory.long_term import (
@@ -12,6 +18,11 @@ from app.search.tavily import search_web
 
 
 MAX_TAVILY_QUERY_LENGTH = 400
+
+client = AsyncOpenAI(
+    api_key=settings.openai_api_key,
+    base_url=settings.openai_base_url,
+)
 
 
 async def build_long_term_context(query: str) -> tuple[str, int]:
@@ -37,7 +48,7 @@ def build_search_queries(
     user_query: str,
     mode: ResearchMode,
     long_term_context: str
-) -> str:
+) -> list[str]:
     base_query = " ".join(user_query.split())
     
     if mode == ResearchMode.NORMAL:
@@ -77,51 +88,75 @@ def _source_row_to_model(row: dict) -> Source:
     )
 
 
-def synthesize_response(
+async def synthesize_response(
     user_query: str,
     mode: ResearchMode,
     search_answers: list[str],
     sources: list[Source],
     long_term_context: str,
-) -> str:
-    if mode == ResearchMode.NORMAL:
-        for answer in search_answers:
-            if answer:
-                return answer
-        return "I could not find enough source-backed information to answer confidently."
+) -> tuple[str, TokenBudget]:
+    source_lines = []
     
-    prompt = get_research_prompt(mode)
-    
-    lines = [
-        prompt,
-        "",
-        f"Question: {user_query}",
-    ]
-    
-    if long_term_context:
-        lines.extend(
-            [
-                "",
-                "Relevant previous-session context:",
-                long_term_context,
-            ]
+    for index, source in enumerate(sources, start=1):
+        source_lines.append(
+            f"[{index}] {source.title}\n"
+            f"URL: {source.url}\n"
+            f"Snippet: {source.snippet}"
         )
-        
-    lines.append("")
-    lines.append("Findings:")
-    
+
+    finding_lines = []
+
     for index, answer in enumerate(search_answers, start=1):
         if answer:
-            lines.append(f"\nSearch {index}:")
-            lines.append(answer)
-            
-    if sources:
-        lines.append("")
-        lines.append("Sources:")
-        for index, source in enumerate(sources, start=1):
-            lines.append(f"[{index}] {source.title} - {source.url}")
+            finding_lines.append(f"Search {index} answer:\n{answer}")
 
-    return "\n".join(lines)
+    prompt = f"""
+System behavior:
+{get_research_prompt(mode)}
+
+Synthesis instruction:
+{get_synthesis_instruction(mode)}
+
+User question:
+{user_query}
+
+Previous-session context:
+{long_term_context or "None"}
+
+Search findings:
+{chr(10).join(finding_lines) or "No search answers returned."}
+
+Sources:
+{chr(10).join(source_lines) or "No sources returned."}
+
+Write the final answer now.
+""".strip()
+
+    response = await client.chat.completions.create(
+        model=settings.research_model,
+        messages=[
+            {
+                "role": "system",
+                "content": get_research_prompt(mode),
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        temperature=0.2,
+    )
+
+    content = response.choices[0].message.content or ""
+
+    usage = response.usage
+    token_usage = TokenBudget(
+        prompt_tokens=getattr(usage, "prompt_tokens", 0) if usage else 0,
+        completion_tokens=getattr(usage, "completion_tokens", 0) if usage else 0,
+        total_tokens=getattr(usage, "total_tokens", 0) if usage else 0,
+    )
+
+    return content, token_usage
 
 
 async def run_research(request: ResearchRequest) -> ResearchResponse:
@@ -157,7 +192,7 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
     
     sources = [_source_row_to_model(row) for row in all_source_rows]
     
-    response_text = synthesize_response(
+    response_text, token_usage = await synthesize_response(
         user_query=request.query,
         mode=request.mode,
         search_answers=search_answers,
@@ -176,5 +211,5 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
             memories=[],
             retrieval_time_ms=0,
         ),
-        token_usage=TokenBudget(),
+        token_usage=token_usage,
     )
