@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     min_messages_for_auto_summarize: int = 5
     tavily_api_key: str
     tavily_base_url: str = "https://api.tavily.com"
+    research_model: str = "openai/gpt-4o-mini"
 
 
 settings = Settings()
