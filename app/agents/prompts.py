@@ -34,11 +34,15 @@ def get_synthesis_instruction(mode: ResearchMode) -> str:
 Write a comprehensive research answer.
 
 Requirements:
+- Every factual claim should include a citation like [1], [2], or [3].
+- Use only citation numbers from the provided Sources list.
+- If a factual claim cannot be cited, write "(unverified)" after it.
 - Cover the key angles investigated.
 - Mention gaps, uncertainty, or contradictions when present.
-- Every factual claim should include a citation like [1], [2], or [3].
+- If sources contradict each other, note it explicitly with citations.
 - Use only the provided sources.
 - Do not invent sources.
+- Do not include a source list; it will be appended automatically.
     """.strip()
     
     return """
@@ -46,7 +50,10 @@ Write a concise research answer.
 
 Requirements:
 - Answer directly.
-- Include citations like [1] or [2] for factual claims.
+- Every factual claim must include a citation like [1] or [2].
+- Use only citation numbers from the provided Sources list.
+- If a factual claim cannot be cited, write "(unverified)" after it.
 - Use only the provided sources.
 - Do not invent sources.
+- Do not include a source list; it will be appended automatically.
 """.strip()
