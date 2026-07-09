@@ -1,6 +1,35 @@
 from uuid import UUID
 
 from app.db.postgres import get_pool
+from app.models.sessions import ConversationRole
+
+
+async def create_message(
+    session_id: UUID,
+    role: ConversationRole,
+    content: str,
+    token_count: int = 0,
+) -> dict:
+    pool = await get_pool()
+    
+    row = await pool.fetchrow(
+        """
+        INSERT INTO conversation_history (
+            session_id,
+            role,
+            content,
+            token_count
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+        """,
+        session_id,
+        role.value,
+        content,
+        token_count,
+    )
+    
+    return dict(row)
 
 
 async def list_session_messages(session_id: UUID) -> list[dict]:
