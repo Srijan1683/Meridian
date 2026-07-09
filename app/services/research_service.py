@@ -5,8 +5,15 @@ from app.agents.prompts import (
     get_search_count,
     get_synthesis_instruction,
 )
-from app.db.repositories.sources import create_sources_for_search
+from app.db.repositories.sources import create_sources_for_search, create_source_citations
 from app.db.repositories.sessions import create_session
+from app.db.repositories.messages import create_message
+from app.models.sessions import ConversationRole
+from app.services.citation_service import (
+    append_source_list,
+    extract_citations,
+    validate_citations,
+)
 from app.memory.long_term import (
     format_long_term_memory_context,
     retrieve_long_term_memories
@@ -199,11 +206,45 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         sources=sources,
         long_term_context=long_term_context,
     )
+    
+    invalid_citations = validate_citations(
+        response_text=response_text,
+        sources=sources,
+    )
+    
+    if invalid_citations:
+        response_text += (
+            "\n\nCitation warning: Some citation markers did not map to returned sources: "
+            + ", ".join(f"[{index}]" for index in sorted(set(invalid_citations)))
+        )
+        
+    response_with_sources = append_source_list(
+        response_text=response_text,
+        sources=sources,
+    )
+    
+    assistant_message = await create_message(
+        session_id=session_id,
+        role=ConversationRole.ASSISTANT,
+        content=response_with_sources,
+        token_count=token_usage.total_tokens,
+    )
+    
+    citations = extract_citations(
+        response_text=response_text,
+        sources=sources,
+    )
+    
+    await create_source_citations(
+        message_id=assistant_message["message_id"],
+        citations=citations,
+    )
+    
 
     return ResearchResponse(
         session_id=session_id,
         mode=request.mode,
-        response=response_text,
+        response=response_with_sources,
         sources=sources,
         memory_context=MemoryContext(
             short_term_retrieved=0,
