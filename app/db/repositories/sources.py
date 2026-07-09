@@ -65,3 +65,50 @@ async def list_session_sources(session_id: UUID) -> list[dict]:
     )
     
     return [dict(row) for row in rows]
+
+
+async def create_source_citation(
+    message_id: UUID,
+    source_id: UUID,
+    citation_index: int,
+    claim_text: str,
+) -> dict:
+    pool = await get_pool()
+    
+    row = await pool.fetchrow(
+        """
+        INSERT INTO source_citations (
+            message_id,
+            source_id,
+            citation_index,
+            claim_text
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+        """,
+        message_id,
+        source_id,
+        citation_index,
+        claim_text,
+    )
+    
+    return dict(row)
+
+
+async def create_source_citations(
+    message_id: UUID,
+    citations: list[dict],
+) -> list[dict]:
+    created: list[dict] = []
+    
+    for citation in citations:
+        created.append(
+            await create_source_citation(
+                message_id=message_id,
+                source_id=citation["source_id"],
+                citation_index=citation["citation_index"],
+                claim_text=citation["claim_text"],
+            )
+        )
+        
+    return created
