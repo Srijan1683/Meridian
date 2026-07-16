@@ -1,3 +1,7 @@
+from collections.abc import Awaitable, Callable
+
+from app.models.websocket import WSMessageType
+
 from openai import AsyncOpenAI
 from app.config import settings
 from app.agents.prompts import (
@@ -25,6 +29,8 @@ from app.search.tavily import search_web
 
 
 MAX_TAVILY_QUERY_LENGTH = 400
+
+ProgressCallback = Callable[[WSMessageType, dict], Awaitable[None]]
 
 client = AsyncOpenAI(
     api_key=settings.openai_api_key,
@@ -251,6 +257,152 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
             long_term_retrieved=long_term_count,
             memories=[],
             retrieval_time_ms=0,
+        ),
+        token_usage=token_usage,
+    )
+
+
+async def run_research_streaming(
+    request: ResearchRequest,
+    progress: ProgressCallback,
+    is_cancelled: Callable[[], bool],
+) -> ResearchResponse:
+    session = await create_session(session_id=request.session_id)
+    session_id = session["session_id"]
+    
+    long_term_context, long_term_count = await build_long_term_context(request.query)
+    
+    await progress(
+        WSMessageType.MEMORY,
+        {
+            "session_id": str(session_id),
+            "long_term_retrieved": long_term_count,
+            "context": long_term_context,
+        },
+    )
+    
+    search_queries = build_search_queries(
+        user_query=request.query,
+        mode=request.mode,
+        long_term_context=long_term_context,
+    )
+    
+    all_source_rows: list[dict] = []
+    search_answers: list[str] = []
+    
+    for index, search_query in enumerate(search_queries, start=1):
+        if is_cancelled:
+            break
+        
+        await progress(
+            WSMessageType.SEARCHING,
+            {
+                "session_id": str(session_id),
+                "query": search_query,
+                "search_index": index,
+                "total_searches": len(search_queries),
+            },
+        )
+        
+        search_result = await search_web(
+            query=search_query,
+            deep=request.mode == ResearchMode.DEEP,
+        )
+        
+        search_answers.append(search_result.answer)
+        
+        source_rows = await create_sources_for_search(
+            session_id=sssion_id,
+            sources=search_result.sources,
+            search_query=search_query,
+        )
+        
+        all_source_rows.extend(source_rows)
+        
+        for row in source_rows:
+            source = _source_row_to_model(row)
+            
+            await progress(
+                WSMessageType.SOURCE,
+                {
+                    "session_id": str(session_id),
+                    "source": source.model_dump(mode="json"),
+                },
+            )
+    
+    sources = [_source_row_to_model(row) for row in all_source_rows]
+    
+    if is_cancelled():
+        partial_text = "\n\n".join(answer for answer in search_answers if answer)
+        response_text = partial_text or "Research was cancelled before enough information was gathered."
+        token_usage = TokenBudget()
+        
+    else:
+        response_text, token_usage = await synthesize_response(
+            user_query=request.query,
+            mode=request.mode,
+            search_answers=search_answers,
+            sources=sources,
+            long_term_context=long_term_context,
+        )
+        
+    invalid_citations = validate_citations(
+        response_text=response_text,
+        sources=sources,
+    )
+    
+    if invalid_citations:
+        response_text += (
+            "\n\nCitation warning: Some citation markers did not map to returned sources: "
+            + ", ".join(f"[{index}]" for index in sorted(set(invalid_citations)))
+        )
+        
+    response_with_sources = append_source_list(
+        response_text=response_text,
+        sources=sources,
+    )
+    
+    assistant_message = await create_message(
+        session_id=session_id,
+        role=ConversationRole.ASSISTANT,
+        content=response_with_sources,
+        token_count=token_usage.total_tokens,
+    )
+    
+    citations = extract_citations(
+        response_text=response_text,
+        sources=sources,
+    )
+    
+    await create_source_citations(
+        message_id=assistant_message["message_id"],
+        citations=citations,
+    )
+    
+    for chunk_start in range(0, len(response_with_sources), 600):
+        if is_cancelled:
+            break
+        
+        chunk = response_with_sources[chunk_start:chunk_start + 600]
+        
+        await progress(
+            WSMessageType.CONTENT,
+            {
+                "session_id": str(session_id),
+                "chunk": chunk,
+            },
+        )
+        
+    return ResearchResponse(
+        session_id=session_id,
+        mode=request.mode,
+        response=response_with_sources,
+        sources=sources,
+        memory_context=MemoryContext(
+            short_term_retrieved=0,
+            long_term_retrieved=long_term_count,
+            memories=[],
+            retrieval_time_ms=0
         ),
         token_usage=token_usage,
     )
