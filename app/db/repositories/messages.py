@@ -59,3 +59,21 @@ async def count_session_messages(session_id: UUID) -> int:
         """,
         session_id,
     )
+
+
+async def get_latest_assistant_message(session_id: UUID) -> dict | None:
+    pool = await get_pool()
+    
+    row = await pool.fetchrow(
+        """
+        SELECT message_id, session_id, role, content, token_count, created_at
+        FROM conversation_history
+        WHERE session_id = $1
+            AND role = 'assistant'
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        session_id,
+    )
+    
+    return dict(row) if row else None
