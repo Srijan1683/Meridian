@@ -1,4 +1,5 @@
 from enum import Enum
+from datetime import datetime
 
 from pydantic import BaseModel
 from uuid import UUID
@@ -27,3 +28,10 @@ class ResearchResponse(BaseModel):
     sources: list[Source]
     memory_context: MemoryContext
     token_usage: TokenBudget
+    
+class ResearchResultResponse(BaseModel):
+    session_id: UUID
+    message_id: UUID
+    response: str
+    token_count: int
+    created_at: datetime
