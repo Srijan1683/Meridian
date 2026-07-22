@@ -291,7 +291,7 @@ async def run_research_streaming(
     search_answers: list[str] = []
     
     for index, search_query in enumerate(search_queries, start=1):
-        if is_cancelled:
+        if is_cancelled():
             break
         
         await progress(
@@ -312,7 +312,7 @@ async def run_research_streaming(
         search_answers.append(search_result.answer)
         
         source_rows = await create_sources_for_search(
-            session_id=sssion_id,
+            session_id=session_id,
             sources=search_result.sources,
             search_query=search_query,
         )
@@ -380,7 +380,7 @@ async def run_research_streaming(
     )
     
     for chunk_start in range(0, len(response_with_sources), 600):
-        if is_cancelled:
+        if is_cancelled():
             break
         
         chunk = response_with_sources[chunk_start:chunk_start + 600]
