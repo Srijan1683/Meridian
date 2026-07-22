@@ -15,7 +15,7 @@ class ResearchConnection:
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
         self.cancelled = False
-        self.disconnected: False
+        self.disconnected = False
         self.task: asyncio.Task | None = None
         
     async def send(self, message_type: WSMessageType, data: dict) -> None:
@@ -56,7 +56,7 @@ async def _run_research_for_connection(
         
     except Exception as exc:
         await connection.send(
-            WSMessageType.EROR,
+            WSMessageType.ERROR,
             {
                 "error": str(exc),
             },
@@ -74,7 +74,7 @@ async def websocket_research_endpoint(websocket: WebSocket):
             payload = await websocket.receive_json()
             message_type = payload.get("type")
             
-            if message_type == WSMessageType.CANCEL:
+            if message_type == WSMessageType.CANCEL.value:
                 connection.cancelled = True
                 await connection.send(
                     WSMessageType.DONE,
@@ -89,7 +89,7 @@ async def websocket_research_endpoint(websocket: WebSocket):
                 await connection.send(
                     WSMessageType.ERROR,
                     {
-                        "error": "Unsupported websocket messsage type.",
+                        "error": "Unsupported websocket message type.",
                     },
                 )
                 continue
