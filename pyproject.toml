@@ -2,3 +2,7 @@
 pythonpath = ["."]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning:opentelemetry\\.util\\._importlib_metadata",
+    "ignore:Using `httpx` with `starlette\\.testclient` is deprecated:Warning",
+]
