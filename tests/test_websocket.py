@@ -26,6 +26,13 @@ async def test_deep_research_streams_memory_search_sources_and_content(patch_res
     event_types = [event["type"] for event in events]
 
     assert event_types[0] == WSMessageType.MEMORY.value
+    
+    memory_event = events[0]
+    
+    assert memory_event["data"]["short_term_retrieved"] == 0
+    assert memory_event["data"]["long_term_retrieved"] == 0
+    assert memory_event["data"]["context"] == ""
+    
     assert event_types.count(WSMessageType.SEARCHING.value) == 6
     assert event_types.count(WSMessageType.SOURCE.value) == 6
     assert event_types[-1] == WSMessageType.CONTENT.value
@@ -42,6 +49,9 @@ async def test_deep_research_streams_memory_search_sources_and_content(patch_res
     assert streamed_text == result.response
     assert "Sources:" in streamed_text
     assert patch_research["citations"]
+    assert patch_research["short_term_memories"]
+    assert result.memory_context.short_term_retrieved == 0
+    assert result.memory_context.long_term_retrieved == 0
 
 
 def test_websocket_deep_research_events_are_correct(patch_research):
@@ -66,6 +76,9 @@ def test_websocket_deep_research_events_are_correct(patch_research):
                     break
 
     assert messages[0]["type"] == "memory"
+    assert messages[0]["data"]["short_term_retrieved"] == 0
+    assert messages[0]["data"]["long_term_retrieved"] == 0
+    assert messages[0]["data"]["context"] == ""
     assert any(message["type"] == "searching" for message in messages)
     assert any(message["type"] == "source" for message in messages)
     assert any(message["type"] == "content" for message in messages)
@@ -75,3 +88,4 @@ def test_websocket_deep_research_events_are_correct(patch_research):
     assert done["data"]["cancelled"] is False
     assert done["data"]["source_count"] == 6
     assert "Sources:" in done["data"]["response"]
+    assert patch_research["short_term_memories"]
