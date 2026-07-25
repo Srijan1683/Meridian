@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from time import perf_counter
 
 from app.models.websocket import WSMessageType
 
@@ -21,6 +22,11 @@ from app.services.citation_service import (
 from app.memory.long_term import (
     format_long_term_memory_context,
     retrieve_long_term_memories
+)
+from app.memory.short_term import (
+    format_session_memory_context,
+    retrieve_session_memories,
+    store_interaction_memory,
 )
 from app.models.memory import MemoryContext
 from app.models.research import ResearchMode, ResearchResponse, ResearchRequest, TokenBudget
@@ -46,6 +52,17 @@ async def build_long_term_context(query: str) -> tuple[str, int]:
     )
 
     return format_long_term_memory_context(memories), len(memories)
+
+
+async def build_short_term_context(session_id, query: str) -> tuple[str, int]:
+    memories = await retrieve_session_memories(
+        session_id=session_id,
+        query=query,
+        limit=5,
+        min_similarity=0.7,
+    )
+    
+    return format_session_memory_context(memories), len(memories)
 
 
 def _trim_query(query: str) -> str:
@@ -107,6 +124,7 @@ async def synthesize_response(
     search_answers: list[str],
     sources: list[Source],
     long_term_context: str,
+    short_term_context: str = "",
 ) -> tuple[str, TokenBudget]:
     source_lines = []
     
@@ -135,6 +153,9 @@ User question:
 
 Previous-session context:
 {long_term_context or "None"}
+
+Current-session context:
+{short_term_context or "None"}
 
 Search findings:
 {chr(10).join(finding_lines) or "No search answers returned."}
@@ -175,13 +196,26 @@ Write the final answer now.
 async def run_research(request: ResearchRequest) -> ResearchResponse:
     session = await create_session(session_id=request.session_id)
     session_id = session["session_id"]
+    
+    retrieval_start = perf_counter()
+    
+    short_term_context, short_term_count = await build_short_term_context(
+        session_id=session_id,
+        query=request.query,
+    )
 
     long_term_context, long_term_count = await build_long_term_context(request.query)
+    
+    retrieval_time_ms = int((perf_counter() - retrieval_start) * 1000)
+    
+    memory_context = "\n\n".join(
+        context for context in [short_term_context, long_term_context] if context
+    )
     
     search_queries = build_search_queries(
         user_query=request.query,
         mode=request.mode,
-        long_term_context=long_term_context,
+        long_term_context=memory_context,
     )
     
     all_source_rows: list[dict] = []
@@ -211,6 +245,7 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         search_answers=search_answers,
         sources=sources,
         long_term_context=long_term_context,
+        short_term_context=short_term_context,
     )
     
     invalid_citations = validate_citations(
@@ -246,6 +281,12 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         citations=citations,
     )
     
+    await store_interaction_memory(
+        session_id=session_id,
+        query=request.query,
+        response=response_with_sources,
+        message_id=assistant_message["message_id"],
+    )
 
     return ResearchResponse(
         session_id=session_id,
@@ -253,10 +294,10 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         response=response_with_sources,
         sources=sources,
         memory_context=MemoryContext(
-            short_term_retrieved=0,
+            short_term_retrieved=short_term_count,
             long_term_retrieved=long_term_count,
             memories=[],
-            retrieval_time_ms=0,
+            retrieval_time_ms=retrieval_time_ms,
         ),
         token_usage=token_usage,
     )
@@ -270,21 +311,35 @@ async def run_research_streaming(
     session = await create_session(session_id=request.session_id)
     session_id = session["session_id"]
     
+    retrieval_start = perf_counter()
+
+    short_term_context, short_term_count = await build_short_term_context(
+        session_id=session_id,
+        query=request.query,
+    )
+
     long_term_context, long_term_count = await build_long_term_context(request.query)
+
+    retrieval_time_ms = int((perf_counter() - retrieval_start) * 1000)
+
+    memory_context = "\n\n".join(
+        context for context in [short_term_context, long_term_context] if context
+    )
     
     await progress(
         WSMessageType.MEMORY,
         {
             "session_id": str(session_id),
+            "short_term_retrieved": short_term_count,
             "long_term_retrieved": long_term_count,
-            "context": long_term_context,
+            "context": memory_context,
         },
     )
     
     search_queries = build_search_queries(
         user_query=request.query,
         mode=request.mode,
-        long_term_context=long_term_context,
+        long_term_context=memory_context,
     )
     
     all_source_rows: list[dict] = []
@@ -344,6 +399,7 @@ async def run_research_streaming(
             search_answers=search_answers,
             sources=sources,
             long_term_context=long_term_context,
+            short_term_context=short_term_context,
         )
         
     invalid_citations = validate_citations(
@@ -378,6 +434,13 @@ async def run_research_streaming(
         message_id=assistant_message["message_id"],
         citations=citations,
     )
+
+    await store_interaction_memory(
+        session_id=session_id,
+        query=request.query,
+        response=response_with_sources,
+        message_id=assistant_message["message_id"],
+    )
     
     for chunk_start in range(0, len(response_with_sources), 600):
         if is_cancelled():
@@ -399,10 +462,10 @@ async def run_research_streaming(
         response=response_with_sources,
         sources=sources,
         memory_context=MemoryContext(
-            short_term_retrieved=0,
+            short_term_retrieved=short_term_count,
             long_term_retrieved=long_term_count,
             memories=[],
-            retrieval_time_ms=0
+            retrieval_time_ms=retrieval_time_ms
         ),
         token_usage=token_usage,
     )
