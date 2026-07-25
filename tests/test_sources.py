@@ -82,6 +82,7 @@ async def test_invalid_citation_marker_adds_warning(monkeypatch, patch_research)
         search_answers,
         sources,
         long_term_context,
+        short_term_context="",
     ):
         return (
             "This answer cites a missing source [99].",
