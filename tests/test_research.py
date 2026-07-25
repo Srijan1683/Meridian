@@ -30,16 +30,10 @@ async def test_normal_mode_tracks_sources_citations_and_response(patch_research)
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    reason=(
-        "run_research does not currently call "
-        "app.memory.short_term.store_interaction_memory."
-    )
-)
 async def test_normal_mode_updates_short_term_memory(patch_research):
     state = patch_research
-
-    await research_service.run_research(
+    
+    result = await research_service.run_research(
         ResearchRequest(
             query="What changed in reusable rockets?",
             mode=ResearchMode.NORMAL,
@@ -47,3 +41,5 @@ async def test_normal_mode_updates_short_term_memory(patch_research):
     )
 
     assert state["short_term_memories"]
+    assert state["short_term_memories"][0]["metadata"]["session_id"] == str(result.session_id)
+    assert "What changed in reusable rockets?" in state["short_term_memories"][0]["content"]
