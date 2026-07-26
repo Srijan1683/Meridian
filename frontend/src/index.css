@@ -1,0 +1,105 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #08070f;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  background: #08070f;
+  color: #f4f1ff;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Sora", "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+}
+
+.theme-normal {
+  --accent: #38d6ee;
+  --soft-accent: #7dd3fc;
+  --success: #7cf7c8;
+  --danger: #fb7185;
+  --glow: rgba(56, 214, 238, 0.18);
+  --selection: rgba(56, 214, 238, 0.32);
+  --scroll-thumb: rgba(56, 214, 238, 0.38);
+  --app-bg:
+    linear-gradient(180deg, rgba(56, 214, 238, 0.045), transparent 16rem),
+    linear-gradient(135deg, #070b10 0%, #0d1824 52%, #080b12 100%);
+}
+
+.theme-deep {
+  --accent: #a78bfa;
+  --soft-accent: #c4b5fd;
+  --success: #8bffd2;
+  --danger: #fb7185;
+  --glow: rgba(167, 139, 250, 0.18);
+  --selection: rgba(167, 139, 250, 0.34);
+  --scroll-thumb: rgba(167, 139, 250, 0.38);
+  --app-bg:
+    linear-gradient(180deg, rgba(167, 139, 250, 0.055), transparent 16rem),
+    linear-gradient(135deg, #08070f 0%, #121026 48%, #090811 100%);
+}
+
+.app-shell {
+  background: var(--app-bg);
+}
+
+.mesh-border {
+  position: relative;
+}
+
+.mesh-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: inherit;
+  mask-image: linear-gradient(135deg, black, transparent 56%);
+}
+
+.response-markdown {
+  overflow-wrap: anywhere;
+}
