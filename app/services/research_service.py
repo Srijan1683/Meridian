@@ -35,6 +35,16 @@ from app.search.tavily import search_web
 
 
 MAX_TAVILY_QUERY_LENGTH = 400
+REFERENTIAL_MEMORY_TERMS = (
+    "earlier",
+    "previous",
+    "before",
+    "last time",
+    "what i asked",
+    "what we discussed",
+    "that topic",
+    "it in detail",
+)
 
 ProgressCallback = Callable[[WSMessageType, dict], Awaitable[None]]
 
@@ -54,6 +64,11 @@ async def build_long_term_context(query: str) -> tuple[str, int]:
     return format_long_term_memory_context(memories), len(memories)
 
 
+def _looks_like_session_follow_up(query: str) -> bool:
+    normalized = query.lower()
+    return any(term in normalized for term in REFERENTIAL_MEMORY_TERMS)
+
+
 async def build_short_term_context(session_id, query: str) -> tuple[str, int]:
     memories = await retrieve_session_memories(
         session_id=session_id,
@@ -61,6 +76,14 @@ async def build_short_term_context(session_id, query: str) -> tuple[str, int]:
         limit=5,
         min_similarity=0.7,
     )
+
+    if not memories and _looks_like_session_follow_up(query):
+        memories = await retrieve_session_memories(
+            session_id=session_id,
+            query=query,
+            limit=5,
+            min_similarity=-1.0,
+        )
     
     return format_session_memory_context(memories), len(memories)
 
@@ -156,6 +179,10 @@ Previous-session context:
 
 Current-session context:
 {short_term_context or "None"}
+
+If current-session context exists, use it to resolve phrases like "earlier",
+"previous", "what I asked", "that topic", or "it". Do not say you lack memory
+when the context contains the earlier user question or answer.
 
 Search findings:
 {chr(10).join(finding_lines) or "No search answers returned."}
