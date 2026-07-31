@@ -377,12 +377,24 @@ export default function App() {
     if (!sessionId) return;
 
     try {
-      await fetch(`${API_BASE}/sessions/${sessionId}/end`, {
+      setProgress("Saving this session for future recall...");
+
+      const result = await fetch(`${API_BASE}/sessions/${sessionId}/summarize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ summarize: true }),
       });
-      setProgress("Session saved to long-term memory.");
+
+      if (!result.ok) {
+        throw new Error(`Memory save failed with ${result.status}`);
+      }
+
+      const data = await result.json();
+
+      if (data.memory_job) {
+        setProgress("Long-term memory job queued. Run the worker to finish the summary.");
+      } else {
+        setProgress("Session ended. There was not enough content to summarize yet.");
+      }
     } catch (caught) {
       setError(caught.message);
       setStatus("error");
@@ -448,6 +460,12 @@ export default function App() {
                   </button>
                 ))}
               </div>
+
+              <p className="mt-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-xs leading-5 text-slate-400">
+                {mode === "deep"
+                  ? "Deep mode takes longer because it searches from more angles before writing."
+                  : "Normal mode is faster and best for concise answers."}
+              </p>
             </div>
 
             <div className="thin-scrollbar mt-4 min-h-0 flex-1 overflow-auto pr-1">
@@ -517,7 +535,7 @@ export default function App() {
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] text-sm font-medium text-slate-300 transition hover:border-signal-amber/40 hover:text-white disabled:cursor-not-allowed disabled:text-slate-700"
               >
                 <PauseCircle className="h-4 w-4" />
-                Save session memory
+                Save for later
               </button>
             </div>
           </aside>
@@ -562,7 +580,7 @@ export default function App() {
                       )}
                     </div>
                     <p className="mt-4 max-w-md text-sm leading-6 text-slate-400">
-                      Your cited answer will appear here. Long responses stay inside this scrollable reading area.
+                      The response will appear here as Meridian works.
                     </p>
                   </div>
                 )}
