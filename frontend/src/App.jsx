@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Copy,
   Database,
+  History,
   Loader2,
   PauseCircle,
   RotateCcw,
@@ -12,17 +13,12 @@ import {
   Send,
   Sparkles,
   Square,
+  Trash2,
   XCircle,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const WS_BASE = API_BASE.replace(/^http/, "ws");
-
-const starterPrompts = [
-  "What changed in reusable rocket launch economics?",
-  "Research quantum error correction and near-term hardware limits",
-  "Compare recent claims about commercial fusion timelines",
-];
 
 const statusCopy = {
   idle: "Ready",
@@ -208,7 +204,7 @@ function MarkdownResponse({ text }) {
 }
 
 export default function App() {
-  const [query, setQuery] = useState(starterPrompts[0]);
+  const [query, setQuery] = useState("");
   const [mode, setMode] = useState("normal");
   const [sessionId, setSessionId] = useState("");
   const [status, setStatus] = useState("idle");
@@ -218,6 +214,13 @@ export default function App() {
   const [error, setError] = useState("");
   const [memory, setMemory] = useState({ short: 0, long: 0, context: "" });
   const [tokenUsage, setTokenUsage] = useState(null);
+  const [queryHistory, setQueryHistory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("meridian.queryHistory") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const socketRef = useRef(null);
 
   const sourceList = useMemo(() => {
@@ -238,6 +241,37 @@ export default function App() {
     setMemory({ short: 0, long: 0, context: "" });
     setTokenUsage(null);
     setProgress("Ask a question to begin.");
+  }
+
+  function addQueryToHistory(nextQuery, nextMode) {
+    const trimmed = nextQuery.trim();
+    if (!trimmed) return;
+
+    setQueryHistory((current) => {
+      const withoutDuplicate = current.filter(
+        (item) => item.query.toLowerCase() !== trimmed.toLowerCase()
+      );
+      const updated = [
+        {
+          id: crypto.randomUUID(),
+          query: trimmed,
+          mode: nextMode,
+          createdAt: new Date().toISOString(),
+        },
+        ...withoutDuplicate,
+      ].slice(0, 8);
+
+      localStorage.setItem("meridian.queryHistory", JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function deleteQueryFromHistory(historyId) {
+    setQueryHistory((current) => {
+      const updated = current.filter((item) => item.id !== historyId);
+      localStorage.setItem("meridian.queryHistory", JSON.stringify(updated));
+      return updated;
+    });
   }
 
   async function runNormalResearch() {
@@ -356,6 +390,8 @@ export default function App() {
 
   function submitResearch() {
     if (!canSubmit) return;
+
+    addQueryToHistory(query, mode);
 
     if (mode === "deep") {
       runDeepResearch();
@@ -481,17 +517,55 @@ export default function App() {
                 placeholder="Ask a question..."
               />
 
-              <div className="mt-4 space-y-2">
-                {starterPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => setQuery(prompt)}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs leading-5 text-slate-300 transition hover:border-signal-amber/40 hover:text-white"
-                  >
-                    {prompt}
-                  </button>
-                ))}
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    <History className="h-3.5 w-3.5 text-signal-cyan" />
+                    History
+                  </div>
+                  {queryHistory.length ? (
+                    <span className="font-mono text-[11px] text-slate-600">{queryHistory.length}/8</span>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  {queryHistory.length ? (
+                    queryHistory.map((item) => (
+                      <div
+                        key={item.id}
+                        className="group grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuery(item.query);
+                            setMode(item.mode);
+                          }}
+                          className="min-w-0 text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="line-clamp-2 text-xs leading-5 text-slate-300">{item.query}</span>
+                          </div>
+                          <span className="mt-1 inline-flex rounded-full border border-white/10 px-2 py-0.5 text-[10px] capitalize text-slate-500">
+                            {item.mode}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteQueryFromHistory(item.id)}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-600 transition hover:bg-signal-rose/10 hover:text-signal-rose"
+                          title="Delete from history"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-3 text-xs leading-5 text-slate-500">
+                      Your searched queries will appear here.
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.035] p-3">
