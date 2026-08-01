@@ -34,7 +34,7 @@ services:
       - key: MIN_MESSAGES_FOR_AUTO_SUMMARISE
         value: "5"
 
-  - type: worker
+  - type: web
     name: meridian-worker
     env: python
     plan: free
