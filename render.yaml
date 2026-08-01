@@ -1,0 +1,46 @@
+services:
+  - type: web_service
+    name: meridian-backend
+    env: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --reload
+    envVars:
+      - key: DATABASE_URL
+        scope: private
+      - key: OPENAI_API_KEY
+        scope: private
+      - key: OPENAI_BASE_URL
+        value: "https://openrouter.ai/api/v1"
+      - key: TAVILY_API_KEY
+        scope: private
+      - key: TAVILY_BASE_URL
+        value: "https://api.tavily.com"
+      - key: CHROMA_CLOUD_API_KEY
+        scope: private
+      - key: CHROMA_CLOUD_SERVER_URL
+        value: "https://cloud.chroma.com"
+
+  - type: worker
+    name: meridian-worker
+    env: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/run_worker.py
+    envVars:
+      - key: DATABASE_URL
+        scope: private
+      - key: OPENAI_API_KEY
+        scope: private
+      - key: OPENAI_BASE_URL
+        value: "https://openrouter.ai/api/v1"
+      - key: TAVILY_API_KEY
+        scope: private
+      - key: TAVILY_BASE_URL
+        value: "https://api.tavily.com"
+      - key: CHROMA_CLOUD_API_KEY
+        scope: private
+      - key: CHROMA_CLOUD_SERVER_URL
+        value: "https://cloud.chroma.com"
