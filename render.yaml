@@ -25,6 +25,14 @@ services:
         sync: false
       - key: CHROMA_SERVER_HOST
         value: "api.trychroma.com"
+      - key: EMBEDDING_MODEL
+        value: "text-embedding-3-small"
+      - key: SUMMARY_MODEL
+        value: "openai/gpt-4o-mini"
+      - key: RESEARCH_MODEL
+        value: "openai/gpt-4o-mini"
+      - key: MIN_MESSAGES_FOR_AUTO_SUMMARISE
+        value: "5"
 
   - type: worker
     name: meridian-worker
@@ -52,3 +60,11 @@ services:
         sync: false
       - key: CHROMA_SERVER_HOST
         value: "api.trychroma.com"
+      - key: EMBEDDING_MODEL
+        value: "text-embedding-3-small"
+      - key: SUMMARY_MODEL
+        value: "openai/gpt-4o-mini"
+      - key: RESEARCH_MODEL
+        value: "openai/gpt-4o-mini"
+      - key: MIN_MESSAGES_FOR_AUTO_SUMMARISE
+        value: "5"
