@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     tavily_api_key: str
     tavily_base_url: str = "https://api.tavily.com"
     research_model: str = "openai/gpt-4o-mini"
+    chroma_cloud_api_key: str
+    chroma_cloud_server_url: str = "https://cloud.chroma.com"
 
 
 settings = Settings()
