@@ -5,15 +5,11 @@ from chromadb.config import Settings as ChromaSettings
 
 from app.config import settings
 
-if settings.chroma_cloud_api_key and settings.chroma_cloud_server_url:
-    chroma_client = chromadb.Client(
-        ChromaSettings(
-            chroma_api_impl="rest",
-            chroma_server_host=settings.chroma_cloud_server_url,
-            chroma_server_http_port=443,
-            chroma_ssl_enabled=True,
-            chroma_api_key=settings.chroma_cloud_api_key,
-        )
+if settings.chroma_api_key and settings.chroma_tenant and settings.chroma_database:
+    chroma_client = chromadb.CloudClient(
+        tenant=settings.chroma_tenant,
+        database=settings.chroma_database,
+        api_key=settings.chroma_api_key,
     )
 else:
     CHROMA_PATH = Path(settings.chroma_path)
