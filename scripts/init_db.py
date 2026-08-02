@@ -26,10 +26,12 @@ async def init_db():
         sql = f.read()
 
     print("Running migrations...")
-    try:
-        await conn.execute(sql)
-        print("Done — all tables created successfully.")
-    except asyncpg.DuplicateTableError:
-        print("Tables already exist — nothing to do.")
-    finally:
-        await conn.close()
+    await conn.execute(sql.replace(
+        "CREATE TABLE", "CREATE TABLE IF NOT EXISTS"
+    ).replace(
+        "CREATE INDEX", "CREATE INDEX IF NOT EXISTS"
+    ).replace(
+        "CREATE EXTENSION", "CREATE EXTENSION IF NOT EXISTS"
+    ))
+    await conn.close()
+    print("Done — all tables created successfully.")
