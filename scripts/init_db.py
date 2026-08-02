@@ -19,19 +19,31 @@ async def init_db():
         sys.exit(1)
 
     print("Connecting to database...")
-    conn = await asyncpg.connect(database_url)
+    try:
+        conn = await asyncpg.connect(database_url)
+    except Exception as e:
+        print(f"ERROR connecting: {e}")
+        sys.exit(1)
 
     print("Reading migration file...")
     with open(MIGRATION_PATH, "r") as f:
         sql = f.read()
 
     print("Running migrations...")
-    await conn.execute(sql.replace(
-        "CREATE TABLE", "CREATE TABLE IF NOT EXISTS"
-    ).replace(
-        "CREATE INDEX", "CREATE INDEX IF NOT EXISTS"
-    ).replace(
-        "CREATE EXTENSION", "CREATE EXTENSION IF NOT EXISTS"
-    ))
+    statements = [s.strip() for s in sql.split(';') if s.strip()]
+    for statement in statements:
+        try:
+            await conn.execute(statement)
+        except asyncpg.DuplicateTableError:
+            print(f"Table already exists, skipping...")
+        except asyncpg.DuplicateObjectError:
+            print(f"Object already exists, skipping...")
+        except Exception as e:
+            print(f"ERROR: {e}")
+
     await conn.close()
-    print("Done — all tables created successfully.")
+    print("Done.")
+
+
+if __name__ == "__main__":
+    asyncio.run(init_db())
