@@ -1,257 +1,272 @@
 # Meridian
 
-Meridian is a deep research agent with memory. It can answer quick lookup questions in one pass, or run a deeper iterative research flow that searches from multiple angles, evaluates sources, identifies gaps, and synthesizes a cited answer.
+Meridian is a full-stack AI research workspace that combines web search, cited synthesis, short-term session memory, long-term memory summarization, and a responsive React interface.
 
-The core feature is memory:
+It supports two research modes:
 
-- **Short-term memory:** session-level semantic memory stored in a vector database.
-- **Long-term memory:** cross-session summaries generated asynchronously and retrieved in future sessions.
+- **Normal mode:** faster answers using up to 2 targeted searches.
+- **Deep mode:** slower, more thorough research using up to 6 searches with WebSocket progress streaming.
 
-This project brings together agent orchestration, web search, citations, vector databases, RAG, WebSocket streaming, background jobs, and persistent session storage.
+The project is designed to demonstrate practical AI application architecture: retrieval-augmented memory, source tracking, citation validation, async background jobs, streaming UX, and persistent session storage.
 
-## Research Modes
+## Features
 
-### Normal Mode
+- **Memory-aware research**
+  Retrieves short-term session memory and long-term cross-session summaries before generating answers.
 
-Normal mode is for quick questions. The agent performs one or two searches, reads the results, and returns a concise answer with citations.
+- **Two research modes**
+  Normal mode prioritizes speed. Deep mode searches from multiple angles and handles gaps, limitations, and contradictions.
 
-### Deep Research Mode
+- **Citations and source tracking**
+  Every returned source is persisted in Postgres, inline citations are validated, and source lists are appended to responses.
 
-Deep research mode is for complex questions. The agent:
+- **WebSocket streaming**
+  Deep research streams memory, search, source, content, done, and error events to the frontend.
 
-1. Breaks the question into research angles.
-2. Searches iteratively.
-3. Evaluates sources.
-4. Finds gaps and contradictions.
-5. Runs follow-up searches.
-6. Synthesizes a comprehensive answer with inline citations.
+- **Short-term and long-term memory**
+  Session interactions are stored in ChromaDB. Ended sessions can be summarized into long-term memories through a worker.
 
-Both modes use the same agent architecture. The difference is the system prompt and expected depth.
-
-## What This Project Covers
-
-| Skill | Why it matters |
-| --- | --- |
-| Vector databases | Store embeddings and retrieve semantically relevant memory. |
-| RAG | Retrieve useful context before generation. |
-| Memory systems | Support both session-level and cross-session recall. |
-| Async summarization pipelines | Generate durable knowledge artifacts in the background. |
-| Web search integration | Let the agent investigate open-ended questions. |
-| Source tracking and citations | Make claims traceable to their sources. |
-| WebSocket streaming | Stream research progress and support cancellation. |
-
-Reused concepts from earlier projects include FastAPI, async Python, Postgres, asyncpg, OpenAI Agents SDK, tool calling, session management, token counting, rate limits, Pydantic, and httpx.
-
-New concepts include ChromaDB, embedding models, RAG pipelines, WebSockets, Perplexity API integration, and memory summarization workers.
+- **Responsive frontend**
+  React + Vite + Tailwind UI with dark themes, mode-based color switching, query history, markdown/code rendering, mobile layout, and scrollable response panels.
 
 ## Tech Stack
 
-| Library | Purpose |
-| --- | --- |
-| FastAPI | Web framework |
-| Uvicorn | ASGI server |
-| openai-agents | Agent orchestration and tool calling |
-| openai | LLM calls and embedding generation |
-| asyncpg | Async Postgres driver |
-| ChromaDB | Vector database for memory and RAG |
-| httpx | Async HTTP client |
-| tiktoken | Token counting |
-| Pydantic | Data models |
-| python-dotenv | Environment variables |
+### Backend
 
-## External APIs
+- Python
+- FastAPI
+- Uvicorn
+- Pydantic
+- pydantic-settings
+- asyncpg
+- PostgreSQL
+- ChromaDB
+- OpenAI Python SDK
+- OpenAI-compatible model routing through `openai_base_url`
+- Tavily web search
+- tiktoken
+- httpx
+- pytest
+- pytest-asyncio
 
-| API | Purpose |
-| --- | --- |
-| Perplexity API | Web search over the open internet |
-| OpenAI API | Agent reasoning, summarization, and embeddings |
+### Frontend
+
+- React
+- Vite
+- Tailwind CSS
+- PostCSS
+- Autoprefixer
+- lucide-react
+- Browser WebSocket API
+- Browser localStorage
+
+### Infrastructure
+
+- Docker Compose for Postgres
+- SQL migration for schema setup
+- Environment-based configuration through `.env`
 
 ## Architecture
 
-Meridian is built around a FastAPI server with routes for research, sessions, memory, sources, and WebSocket streaming.
+```text
+frontend/
+  React + Vite client
+  - normal research over HTTP
+  - deep research over WebSocket
+  - query history in localStorage
+  - markdown and code block rendering
 
-The research agent is a single mode-driven agent. Normal mode prioritizes quick answers, while deep mode prioritizes thorough iterative research. Both modes use memory retrieval, session history, token budgeting, web search, and source tracking.
+app/
+  FastAPI backend
+  - /research HTTP endpoint
+  - /ws/research WebSocket endpoint
+  - /sessions endpoints
+  - /memory endpoints
+  - /sources endpoints
 
-The memory system uses ChromaDB for semantic retrieval and PostgreSQL for structured persistence. Background workers summarize completed sessions and store long-term memories for future recall.
+PostgreSQL
+  - sessions
+  - conversation history
+  - sources
+  - source citations
+  - memory jobs
+  - API/tool tracking tables
 
-## Current Status
+ChromaDB
+  - short-term session memory collections
+  - long-term memory collection
 
-The project currently has the embedding and short-term memory foundation in place. ChromaDB is configured for persistent vector storage, embeddings support single-text and batch usage, and the memory layer can store, retrieve, filter, and delete session memories.
-
-Short-term memory smoke tests cover bootstrap behavior, semantic retrieval, and context formatting. The next major step is connecting this memory layer into the research flow before moving on to long-term session summarization.
+Worker
+  - claims memory jobs
+  - summarizes ended sessions
+  - stores long-term memory
+```
 
 ## Research Flow
 
-### Deep Research
+### Normal Mode
+
+1. Create or reuse a session.
+2. Retrieve short-term session memory.
+3. Retrieve long-term memory.
+4. Run up to 2 web searches.
+5. Store sources in Postgres.
+6. Synthesize a cited response.
+7. Validate citation markers.
+8. Store citation mappings.
+9. Store the interaction in short-term memory.
+
+### Deep Mode
+
+1. Connect through WebSocket.
+2. Create or reuse a session.
+3. Emit memory event.
+4. Run up to 6 iterative searches.
+5. Emit search and source events.
+6. Synthesize a comprehensive cited response.
+7. Stream content chunks to the client.
+8. Store sources, citations, response, and short-term memory.
+
+## Quantified Implementation
+
+- **19 automated tests** currently pass.
+- **40 Python files** in the backend app package.
+- **8 Python test files**.
+- **3 frontend source files**.
+- **4,307 lines** across app Python files, tests, frontend source, and core config files measured at documentation time.
+- **2 searches** maximum in normal mode.
+- **6 searches** maximum in deep mode.
+- **400 characters** maximum Tavily query length before trimming.
+- **600 characters** per streamed response chunk.
+- **5 short-term memories** retrieved per research request.
+- **3 long-term memories** retrieved per research request.
+- **0.7 similarity threshold** for normal vector memory retrieval.
+- **8 query history items** retained in the frontend.
+- **8,191 tokens** maximum embedding chunk size.
+- **100 tokens** overlap between embedding chunks.
+- **9 relational tables** in the initial Postgres schema.
+
+More detailed technical notes are in [`documentation`](documentation).
+
+## API Surface
+
+| Area | Endpoint | Purpose |
+| --- | --- | --- |
+| Health | `GET /health` | Check backend availability |
+| Research | `POST /research` | Run non-streaming normal/deep research |
+| Research | `GET /research/{session_id}/latest` | Fetch latest completed assistant result |
+| WebSocket | `WS /ws/research` | Stream deep research progress and content |
+| Sessions | `POST /sessions/{session_id}/end` | End a session and optionally queue memory summarization |
+| Sessions | `POST /sessions/{session_id}/summarize` | Force session summarization |
+| Memory | `GET /memory/{session_id}/short-term` | Retrieve relevant session memory context |
+| Memory | `GET /memory/long-term` | Retrieve relevant long-term memory context |
+| Memory | `POST /memory/{session_id}/summarize` | Trigger memory summarization |
+| Sources | `GET /sources/{session_id}` | List sources for a session |
+
+## Setup
+
+### 1. Create environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Configure `.env`
+
+```env
+OPENAI_API_KEY=your_key
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+TAVILY_API_KEY=your_key
+TAVILY_BASE_URL=https://api.tavily.com
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/meridian
+CHROMA_PATH=chroma_data
+EMBEDDING_MODEL=openai/text-embedding-3-small
+SUMMARY_MODEL=openai/gpt-4o-mini
+RESEARCH_MODEL=openai/gpt-4o-mini
+MIN_MESSAGES_FOR_AUTO_SUMMARIZE=5
+```
+
+### 3. Start Postgres
+
+```bash
+docker compose up -d
+```
+
+Apply the initial schema:
+
+```bash
+docker exec -i meridian-postgres psql -U postgres -d meridian < app/db/migrations/001_initial_schema.sql
+```
+
+### 4. Start backend
+
+```bash
+.venv/bin/python -m uvicorn app.main:app --reload
+```
 
-In deep research mode, the agent retrieves short-term and long-term memory, searches from multiple angles, evaluates sources, runs follow-up searches, and synthesizes a cited answer. The response can be streamed over WebSocket while messages, sources, citations, and memory artifacts are stored in the background.
+Backend health check:
 
-### Normal Research
+```text
+http://127.0.0.1:8000/health
+```
 
-In normal mode, the agent retrieves relevant memory, runs one or two searches, returns a concise cited answer, and stores the interaction in short-term memory.
+### 5. Start frontend
 
-## ChromaDB Collections
+```bash
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1 --port 5174
+```
 
-### Short-Term Memory
+Open:
 
-Stores the user query and assistant response for a session.
+```text
+http://127.0.0.1:5174/
+```
 
-Metadata includes:
+### 6. Run memory worker
 
-- session identifiers
-- message identifiers
-- timestamps
-- topic tags
+Run this in a separate terminal when testing long-term memory summarization:
 
-### Long-Term Memory
+```bash
+.venv/bin/python scripts/run_worker.py
+```
 
-Stores session summaries that can be recalled across future sessions.
+## Testing
 
-Metadata includes:
+Backend tests:
 
-- session identifiers
-- key topics
-- key findings
-- summarization timestamps
+```bash
+pytest tests/
+```
 
-## API Endpoints
+Frontend production build:
 
-### Research
+```bash
+cd frontend
+npm run build
+```
 
-| Endpoint | Description |
-| --- | --- |
-| Research endpoint | Submit a non-streaming research query. |
-| WebSocket research endpoint | Run streaming research with progress events. |
+Expected backend test result:
 
-### Memory
+```text
+19 passed
+```
 
-| Endpoint | Description |
-| --- | --- |
-| Session memory endpoint | Get relevant memory context for a session. |
-| Long-term memory endpoint | Query long-term memory across sessions. |
-| Memory jobs endpoint | List memory summarization jobs. |
-| Manual memory job endpoint | Manually trigger memory summarization. |
+## Frontend Notes
 
-### Sources
+- Normal mode uses a blue/aqua dark theme.
+- Deep mode uses a purple/indigo dark theme.
+- Mobile layout hides token counters, moves citations/sources to the bottom, and keeps history inside a dropdown.
+- The response panel renders markdown headings, lists, inline code, and fenced code blocks.
+- The response box scrolls internally so long answers do not break the page layout.
 
-| Endpoint | Description |
-| --- | --- |
-| Session sources endpoint | Return all sources found during a session. |
+## Project Status
 
-## Implementation Plan
+The planned research, memory, source tracking, citation, WebSocket, and integration phases are complete and covered by tests. Remaining improvements are product polish items such as richer source quality scoring, uploaded document support, report export, and a dedicated memory management UI.
 
-### Phase 1: ChromaDB Setup and Embedding Pipeline
+## License
 
-Set up ChromaDB in persistent mode, create short-term and long-term collections, and build an embedding service.
-
-Key tasks:
-
-- Implement single-text embedding.
-- Implement batch embedding.
-- Chunk long text before embedding.
-- Build similarity retrieval with a relevance threshold.
-- Test semantic retrieval with unrelated and related paragraphs.
-
-### Phase 2: Short-Term Memory
-
-Store every query-response pair in the session's short-term collection. Before each new query, retrieve semantically relevant context from the current session.
-
-This lets the agent reference relevant older messages even if they are no longer in the recent conversation window.
-
-### Phase 3: Long-Term Memory and Async Summarization
-
-When a session ends, create a background memory job that:
-
-1. Loads all session messages.
-2. Summarizes the session.
-3. Extracts topics, findings, sources, and unresolved questions.
-4. Embeds the summary.
-5. Stores it in the long-term memory collection.
-6. Updates the job status.
-
-Only sessions with enough substance should be summarized automatically. Short sessions can be summarized manually through the API.
-
-### Phase 4: Perplexity Web Search Integration
-
-Integrate Perplexity as the agent's web search tool. Store every returned source in Postgres with the query that found it.
-
-Deep mode should encourage the agent to create multiple targeted searches rather than repeating the user's original question.
-
-### Phase 5: Two Research Modes
-
-Use one agent with mode-specific prompting:
-
-- **Normal:** concise answer, one or two searches, citations required.
-- **Deep:** investigate multiple angles, iterate, resolve gaps, cite every factual claim.
-
-### Phase 6: Citation and Source System
-
-Use inline citation markers in the response text, then include a source list at the end.
-
-Store citation mappings in Postgres:
-
-- citation index
-- source identifier
-- claim text
-
-The system should validate that every citation marker maps to a real source.
-
-### Phase 7: WebSocket Streaming
-
-Use a WebSocket endpoint for streaming research progress.
-
-Expected event flow: searching, content, source, memory, then done.
-
-The client can send a cancel event to stop research mid-stream.
-
-If the client disconnects, research can continue in the background and store results for later retrieval.
-
-### Phase 8: End-to-End Integration
-
-Test the full flow:
-
-- Normal research query.
-- Deep research query over WebSocket.
-- Source tracking.
-- Citation validation.
-- Short-term memory retrieval.
-- Long-term memory retrieval after session summarization.
-- Edge cases such as rate limits, long sessions, and disconnections.
-
-## Key Concepts
-
-### Memory Architecture
-
-Short-term memory solves the context window problem better than simple truncation. Instead of keeping only the most recent messages, the system retrieves the most semantically relevant interactions from the session.
-
-Long-term memory solves the session boundary problem. It lets the agent recall what was researched in previous sessions and use that context in future conversations.
-
-### Vector Search
-
-Embeddings convert text into points in a high-dimensional space. Similar meanings are close together, which allows the system to retrieve relevant memories even when the wording is different.
-
-Important considerations:
-
-- Focused chunks produce better embeddings than large unfocused documents.
-- Similarity thresholds prevent weakly related memories from polluting the prompt.
-- Metadata filtering keeps retrieval scoped to the right session, time period, or memory type.
-
-### WebSocket vs SSE
-
-Server-Sent Events are one-way. WebSockets are bidirectional, which makes them a better fit here because the server streams research progress while the client can cancel or send follow-up messages on the same connection.
-
-### Single-Agent Design
-
-Meridian intentionally uses one mode-driven agent instead of a planner-executor-synthesizer system. Modern LLMs can handle planning, searching, evaluating, and synthesizing inside one tool-calling loop.
-
-This keeps the architecture focused on the hard parts: memory, citations, retrieval, and infrastructure.
-
-## Stretch Goals
-
-- Export deep research sessions as formatted reports.
-- Build a memory management UI.
-- Support collaborative research sessions.
-- Add source quality scoring.
-- Compare research results for the same question over time.
-- Support uploaded personal documents as a custom knowledge base.
-- Experiment with a multi-agent research architecture.
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
