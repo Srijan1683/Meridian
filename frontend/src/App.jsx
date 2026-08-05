@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   Brain,
+  ChevronDown,
   CheckCircle2,
   Copy,
   Database,
@@ -53,6 +54,88 @@ function Metric({ icon: Icon, label, value, accent = "text-signal-cyan" }) {
   );
 }
 
+function HistoryList({ items, onSelect, onDelete }) {
+  if (!items.length) {
+    return (
+      <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-3 text-xs leading-5 text-slate-500">
+        Your searched queries will appear here.
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-full space-y-2">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="group grid max-w-full grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
+        >
+          <button
+            type="button"
+            onClick={() => onSelect(item)}
+            className="min-w-0 text-left"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="line-clamp-2 text-xs leading-5 text-slate-300">{item.query}</span>
+            </div>
+            <span className="mt-1 inline-flex rounded-full border border-white/10 px-2 py-0.5 text-[10px] capitalize text-slate-500">
+              {item.mode}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(item.id)}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-600 transition hover:bg-signal-rose/10 hover:text-signal-rose"
+            title="Delete from history"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SourcesPanel({ sources }) {
+  return (
+    <section className="flex min-h-0 w-full max-w-full flex-col rounded-lg border border-white/10 bg-ink-900/76 p-4 shadow-panel backdrop-blur">
+      <div className="flex shrink-0 items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Sources</h2>
+        <span className="rounded-full border border-signal-cyan/30 bg-signal-cyan/10 px-2 py-0.5 font-mono text-xs text-signal-cyan">
+          {sources.length}
+        </span>
+      </div>
+
+      <div className="thin-scrollbar mt-4 min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+        {sources.length ? (
+          sources.map((source, index) => (
+            <a
+              key={source.id}
+              href={source.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block max-w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-signal-cyan/15 font-mono text-xs text-signal-cyan">
+                  {index + 1}
+                </span>
+                <h3 className="min-w-0 break-words text-sm font-medium leading-5 text-white">{source.title}</h3>
+              </div>
+              <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-400">{source.snippet}</p>
+              <p className="mt-2 truncate font-mono text-[11px] text-signal-cyan/80">{source.url}</p>
+            </a>
+          ))
+        ) : (
+          <div className="flex min-h-[260px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] p-5 text-center text-sm leading-6 text-slate-500 lg:h-full">
+            Sources appear here as Meridian finds them.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function parseInlineText(text) {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
 
@@ -83,7 +166,7 @@ function CodeBlock({ language, code }) {
   }
 
   return (
-    <div className="my-5 overflow-hidden rounded-lg border border-white/10 bg-[#070911]">
+    <div className="my-5 max-w-full overflow-hidden rounded-lg border border-white/10 bg-[#070911]">
       <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.045] px-4 py-2">
         <span className="font-mono text-xs uppercase tracking-[0.16em] text-signal-cyan">
           {language || "snippet"}
@@ -97,7 +180,7 @@ function CodeBlock({ language, code }) {
           Copy
         </button>
       </div>
-      <pre className="thin-scrollbar overflow-x-auto p-4 text-sm leading-6">
+      <pre className="thin-scrollbar max-w-full overflow-x-auto p-4 text-sm leading-6">
         <code className="font-mono text-slate-100">{code}</code>
       </pre>
     </div>
@@ -138,7 +221,7 @@ function MarkdownResponse({ text }) {
   }
 
   return (
-    <article className="response-markdown max-w-4xl text-[15px] leading-7 text-slate-200">
+    <article className="response-markdown w-full max-w-full overflow-hidden text-[15px] leading-7 text-slate-200 lg:max-w-4xl">
       {blocks.map((block, blockIndex) => {
         if (block.type === "code") {
           return <CodeBlock key={blockIndex} language={block.language} code={block.code} />;
@@ -176,9 +259,9 @@ function MarkdownResponse({ text }) {
 
         if (/^[-*]\s+/.test(trimmed)) {
           return (
-            <div key={blockIndex} className="my-1 flex gap-3 pl-1">
+            <div key={blockIndex} className="my-1 flex min-w-0 max-w-full gap-3 pl-1">
               <span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-signal-cyan" />
-              <p>{parseInlineText(trimmed.replace(/^[-*]\s+/, ""))}</p>
+              <p className="min-w-0 max-w-full">{parseInlineText(trimmed.replace(/^[-*]\s+/, ""))}</p>
             </div>
           );
         }
@@ -186,15 +269,15 @@ function MarkdownResponse({ text }) {
         if (/^\d+\.\s+/.test(trimmed)) {
           const [number] = trimmed.split(".");
           return (
-            <div key={blockIndex} className="my-1 flex gap-3">
+            <div key={blockIndex} className="my-1 flex min-w-0 max-w-full gap-3">
               <span className="font-mono text-sm text-signal-cyan">{number}.</span>
-              <p>{parseInlineText(trimmed.replace(/^\d+\.\s+/, ""))}</p>
+              <p className="min-w-0 max-w-full">{parseInlineText(trimmed.replace(/^\d+\.\s+/, ""))}</p>
             </div>
           );
         }
 
         return (
-          <p key={blockIndex} className="my-2">
+          <p key={blockIndex} className="my-2 min-w-0 max-w-full">
             {parseInlineText(trimmed)}
           </p>
         );
@@ -222,6 +305,8 @@ export default function App() {
     }
   });
   const socketRef = useRef(null);
+  const normalRequestRef = useRef(null);
+  const queryInputRef = useRef(null);
 
   const sourceList = useMemo(() => {
     const map = new Map();
@@ -233,6 +318,14 @@ export default function App() {
   }, [sources]);
 
   const canSubmit = query.trim() && status !== "running";
+
+  useEffect(() => {
+    const input = queryInputRef.current;
+    if (!input) return;
+
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 320)}px`;
+  }, [query]);
 
   function resetWorkspace() {
     setResponse("");
@@ -274,15 +367,24 @@ export default function App() {
     });
   }
 
+  function selectHistoryItem(item) {
+    setQuery(item.query);
+    setMode(item.mode);
+  }
+
   async function runNormalResearch() {
     setStatus("running");
     resetWorkspace();
     setProgress("Searching and preparing a cited answer...");
 
     try {
+      const controller = new AbortController();
+      normalRequestRef.current = controller;
+
       const result = await fetch(`${API_BASE}/research`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           query: query.trim(),
           mode: "normal",
@@ -307,9 +409,15 @@ export default function App() {
       setProgress("Answer ready.");
       setStatus("complete");
     } catch (caught) {
+      if (caught.name === "AbortError") {
+        return;
+      }
+
       setError(caught.message);
       setProgress("Something went wrong.");
       setStatus("error");
+    } finally {
+      normalRequestRef.current = null;
     }
   }
 
@@ -368,7 +476,11 @@ export default function App() {
       if (event.type === "done") {
         setResponse((current) => current || data.response || "");
         setTokenUsage(data.token_usage || null);
-        setProgress(data.cancelled ? "Research cancelled." : "Answer ready.");
+        setProgress(
+          data.cancelled
+            ? "Response saved for later. Partial results/citations will be stored if available."
+            : "Answer ready."
+        );
         setStatus(data.cancelled ? "cancelled" : "complete");
         socket.close();
       }
@@ -409,7 +521,21 @@ export default function App() {
     setStatus("cancelled");
   }
 
-  async function endSession() {
+  async function saveForLater() {
+    if (status === "running") {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: "cancel" }));
+      }
+
+      if (normalRequestRef.current) {
+        normalRequestRef.current.abort();
+      }
+
+      setProgress("Response saved for later. Partial results/citations will be stored if available.");
+      setStatus("cancelled");
+      return;
+    }
+
     if (!sessionId) return;
 
     try {
@@ -444,8 +570,8 @@ export default function App() {
   }
 
   return (
-    <main className={classNames("app-shell h-screen overflow-hidden px-4 py-4 text-slate-100 sm:px-5", mode === "deep" ? "theme-deep" : "theme-normal")}>
-      <div className="mx-auto flex h-full max-w-[1720px] flex-col gap-4">
+    <main className={classNames("app-shell min-h-screen w-full max-w-full overflow-x-hidden px-3 py-4 text-slate-100 sm:px-5 lg:h-screen lg:overflow-hidden", mode === "deep" ? "theme-deep" : "theme-normal")}>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1720px] flex-col gap-4 overflow-x-hidden lg:h-full lg:min-h-0">
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-signal-cyan/30 bg-signal-cyan/10 shadow-glow">
@@ -473,8 +599,8 @@ export default function App() {
           </div>
         </header>
 
-        <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)_310px]">
-          <aside className="flex min-h-0 flex-col rounded-lg border border-white/10 bg-ink-900/78 p-4 shadow-panel backdrop-blur">
+        <section className="grid w-full max-w-full flex-1 gap-4 overflow-x-hidden lg:min-h-0 lg:grid-cols-[290px_minmax(0,1fr)_280px] xl:grid-cols-[330px_minmax(0,1fr)_310px]">
+          <aside className="flex w-full max-w-full flex-col rounded-lg border border-white/10 bg-ink-900/78 p-4 shadow-panel backdrop-blur lg:min-h-0">
             <div className="shrink-0">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Ask</h2>
@@ -504,20 +630,38 @@ export default function App() {
               </p>
             </div>
 
-            <div className="thin-scrollbar mt-4 min-h-0 flex-1 overflow-auto pr-1">
+            <div className="thin-scrollbar mt-4 flex-1 overflow-visible pr-1 lg:min-h-0 lg:overflow-auto">
               <label className="block text-sm font-medium text-slate-300" htmlFor="query">
                 Research question
               </label>
               <textarea
+                ref={queryInputRef}
                 id="query"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                rows={10}
-                className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-black/30 p-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-signal-cyan/60 focus:ring-2 focus:ring-signal-cyan/10"
+                rows={3}
+                className="mt-2 max-h-[320px] min-h-[150px] w-full max-w-full resize-none overflow-y-hidden rounded-lg border border-white/10 bg-black/30 p-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-signal-cyan/60 focus:ring-2 focus:ring-signal-cyan/10 lg:h-[240px] lg:max-h-none lg:min-h-0 lg:overflow-y-auto"
                 placeholder="Ask a question..."
               />
 
-              <div className="mt-4">
+              <details className="mt-4 rounded-lg border border-white/10 bg-white/[0.035] p-3 lg:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <span className="flex items-center gap-2">
+                    <History className="h-3.5 w-3.5 text-signal-cyan" />
+                    History
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                </summary>
+                <div className="thin-scrollbar mt-3 max-h-[260px] overflow-auto pr-1">
+                  <HistoryList
+                    items={queryHistory}
+                    onSelect={selectHistoryItem}
+                    onDelete={deleteQueryFromHistory}
+                  />
+                </div>
+              </details>
+
+              <div className="mt-4 hidden lg:block">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                     <History className="h-3.5 w-3.5 text-signal-cyan" />
@@ -528,44 +672,11 @@ export default function App() {
                   ) : null}
                 </div>
 
-                <div className="space-y-2">
-                  {queryHistory.length ? (
-                    queryHistory.map((item) => (
-                      <div
-                        key={item.id}
-                        className="group grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setQuery(item.query);
-                            setMode(item.mode);
-                          }}
-                          className="min-w-0 text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="line-clamp-2 text-xs leading-5 text-slate-300">{item.query}</span>
-                          </div>
-                          <span className="mt-1 inline-flex rounded-full border border-white/10 px-2 py-0.5 text-[10px] capitalize text-slate-500">
-                            {item.mode}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteQueryFromHistory(item.id)}
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-600 transition hover:bg-signal-rose/10 hover:text-signal-rose"
-                          title="Delete from history"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-3 text-xs leading-5 text-slate-500">
-                      Your searched queries will appear here.
-                    </div>
-                  )}
-                </div>
+                <HistoryList
+                  items={queryHistory}
+                  onSelect={selectHistoryItem}
+                  onDelete={deleteQueryFromHistory}
+                />
               </div>
 
               <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.035] p-3">
@@ -581,7 +692,7 @@ export default function App() {
             </div>
 
             <div className="mt-4 shrink-0 space-y-3">
-              <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                 <button
                   type="button"
                   disabled={!canSubmit}
@@ -604,17 +715,17 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={endSession}
-                disabled={!sessionId}
+                onClick={saveForLater}
+                disabled={status !== "running" && !sessionId}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] text-sm font-medium text-slate-300 transition hover:border-signal-amber/40 hover:text-white disabled:cursor-not-allowed disabled:text-slate-700"
               >
                 <PauseCircle className="h-4 w-4" />
-                Save for later
+                {status === "running" ? "Save response" : "Save for later"}
               </button>
             </div>
           </aside>
 
-          <section className="flex min-h-0 flex-col rounded-lg border border-white/10 bg-ink-900/74 shadow-panel backdrop-blur">
+          <section className="flex min-h-[68vh] w-full max-w-full min-w-0 flex-col rounded-lg border border-white/10 bg-ink-900/74 shadow-panel backdrop-blur lg:min-h-0">
             <div className="flex shrink-0 flex-col gap-3 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-xl font-semibold text-white">Answer</h2>
@@ -640,8 +751,8 @@ export default function App() {
               </div>
             ) : null}
 
-            <div className="min-h-0 flex-1 p-4">
-              <div className="thin-scrollbar h-full overflow-y-auto rounded-lg border border-white/10 bg-black/24 p-5">
+            <div className="min-h-0 min-w-0 max-w-full flex-1 overflow-hidden p-3 sm:p-4">
+              <div className="thin-scrollbar min-h-[56vh] w-full max-w-full min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border border-white/10 bg-black/24 p-4 sm:p-5 lg:h-full lg:min-h-0">
                 {response ? (
                   <MarkdownResponse text={response} />
                 ) : (
@@ -662,7 +773,7 @@ export default function App() {
             </div>
           </section>
 
-          <aside className="hidden min-h-0 flex-col gap-4 xl:flex">
+          <aside className="hidden min-h-0 flex-col gap-4 lg:flex">
             <section className="grid shrink-0 grid-cols-2 gap-3">
               <Metric icon={Brain} label="This session" value={memory.short} accent="text-signal-green" />
               <Metric icon={Database} label="Past sessions" value={memory.long} accent="text-signal-amber" />
@@ -687,42 +798,12 @@ export default function App() {
               </div>
             </section>
 
-            <section className="flex min-h-0 flex-1 flex-col rounded-lg border border-white/10 bg-ink-900/76 p-4 shadow-panel backdrop-blur">
-              <div className="flex shrink-0 items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Sources</h2>
-                <span className="rounded-full border border-signal-cyan/30 bg-signal-cyan/10 px-2 py-0.5 font-mono text-xs text-signal-cyan">
-                  {sourceList.length}
-                </span>
-              </div>
-
-              <div className="thin-scrollbar mt-4 min-h-0 flex-1 space-y-3 overflow-auto pr-1">
-                {sourceList.length ? (
-                  sourceList.map((source, index) => (
-                    <a
-                      key={source.id}
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block rounded-lg border border-white/10 bg-white/[0.04] p-3 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-signal-cyan/15 font-mono text-xs text-signal-cyan">
-                          {index + 1}
-                        </span>
-                        <h3 className="line-clamp-2 text-sm font-medium leading-5 text-white">{source.title}</h3>
-                      </div>
-                      <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-400">{source.snippet}</p>
-                      <p className="mt-2 truncate font-mono text-[11px] text-signal-cyan/80">{source.url}</p>
-                    </a>
-                  ))
-                ) : (
-                  <div className="flex h-full min-h-[260px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] p-5 text-center text-sm leading-6 text-slate-500">
-                    Sources appear here as Meridian finds them.
-                  </div>
-                )}
-              </div>
-            </section>
+            <SourcesPanel sources={sourceList} />
           </aside>
+
+          <div className="w-full max-w-full lg:hidden">
+            <SourcesPanel sources={sourceList} />
+          </div>
         </section>
       </div>
     </main>

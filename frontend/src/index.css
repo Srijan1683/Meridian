@@ -17,13 +17,21 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
-  min-width: 320px;
   min-height: 100vh;
   margin: 0;
   font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
   background: #08070f;
   color: #f4f1ff;
+  overflow-x: hidden;
 }
 
 h1,
@@ -101,5 +109,50 @@ input {
 }
 
 .response-markdown {
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.response-markdown * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.response-markdown p,
+.response-markdown h1,
+.response-markdown h2,
+.response-markdown h3,
+.response-markdown div,
+.response-markdown span,
+.response-markdown strong {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.response-markdown :not(pre) > code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.response-markdown pre {
+  width: 100%;
+  max-width: 100%;
+  white-space: pre;
+}
+
+.response-markdown pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  word-break: normal;
+}
+
+@media (max-width: 767px) {
+  .response-markdown {
+    width: 100%;
+    max-width: calc(100vw - 3.5rem);
+  }
 }
