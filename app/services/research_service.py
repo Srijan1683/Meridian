@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable
 from time import perf_counter
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.models.websocket import WSMessageType
 
@@ -30,7 +31,7 @@ from app.memory.short_term import (
 )
 from app.models.memory import MemoryContext
 from app.models.research import ResearchMode, ResearchResponse, ResearchRequest, TokenBudget
-from app.models.sources import Source, SourceType
+from app.models.sources import SearchResult, Source, SourceType
 from app.search.tavily import search_web
 
 
@@ -141,6 +142,50 @@ def _source_row_to_model(row: dict) -> Source:
     )
 
 
+def _source_dedupe_key(url: str, title: str = "") -> str:
+    try:
+        parsed = urlsplit(str(url).strip())
+    except ValueError:
+        return f"title:{' '.join(title.lower().split())}"
+
+    if not parsed.netloc:
+        return f"title:{' '.join(title.lower().split())}"
+
+    query_pairs = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.lower().startswith("utm_")
+    ]
+    normalized = urlunsplit(
+        (
+            parsed.scheme.lower() or "https",
+            parsed.netloc.lower(),
+            parsed.path.rstrip("/") or "/",
+            urlencode(query_pairs, doseq=True),
+            "",
+        )
+    )
+    return f"url:{normalized}"
+
+
+def _unique_search_results(
+    sources: list[SearchResult],
+    seen_keys: set[str],
+) -> list[SearchResult]:
+    unique_sources: list[SearchResult] = []
+
+    for source in sources:
+        key = _source_dedupe_key(source.url, source.title)
+
+        if key in seen_keys:
+            continue
+
+        seen_keys.add(key)
+        unique_sources.append(source)
+
+    return unique_sources
+
+
 async def synthesize_response(
     user_query: str,
     mode: ResearchMode,
@@ -247,6 +292,7 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
     
     all_source_rows: list[dict] = []
     search_answers: list[str] = []
+    seen_source_keys: set[str] = set()
     
     for search_query in search_queries:
         search_result = await search_web(
@@ -256,9 +302,11 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         
         search_answers.append(search_result.answer)
     
+        unique_sources = _unique_search_results(search_result.sources, seen_source_keys)
+
         source_rows = await create_sources_for_search(
             session_id=session_id,
-            sources=search_result.sources,
+            sources=unique_sources,
             search_query=search_query,
         )
     
@@ -371,6 +419,7 @@ async def run_research_streaming(
     
     all_source_rows: list[dict] = []
     search_answers: list[str] = []
+    seen_source_keys: set[str] = set()
     
     for index, search_query in enumerate(search_queries, start=1):
         if is_cancelled():
@@ -393,9 +442,11 @@ async def run_research_streaming(
         
         search_answers.append(search_result.answer)
         
+        unique_sources = _unique_search_results(search_result.sources, seen_source_keys)
+
         source_rows = await create_sources_for_search(
             session_id=session_id,
-            sources=search_result.sources,
+            sources=unique_sources,
             search_query=search_query,
         )
         
