@@ -42,6 +42,22 @@ function normalizeSource(source) {
   };
 }
 
+function sourceDedupeKey(source) {
+  try {
+    const url = new URL(source.url);
+    url.hash = "";
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (key.toLowerCase().startsWith("utm_")) {
+        url.searchParams.delete(key);
+      }
+    }
+    url.pathname = url.pathname.replace(/\/$/, "") || "/";
+    return `url:${url.origin.toLowerCase()}${url.pathname}${url.search}`;
+  } catch {
+    return `title:${source.title.toLowerCase().replace(/\s+/g, " ").trim()}`;
+  }
+}
+
 function Metric({ icon: Icon, label, value, accent = "text-signal-cyan" }) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
@@ -312,7 +328,10 @@ export default function App() {
     const map = new Map();
     for (const source of sources) {
       const normalized = normalizeSource(source);
-      map.set(normalized.id, normalized);
+      const key = sourceDedupeKey(normalized);
+      if (!map.has(key)) {
+        map.set(key, normalized);
+      }
     }
     return Array.from(map.values());
   }, [sources]);
