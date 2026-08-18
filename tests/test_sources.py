@@ -2,6 +2,7 @@ import pytest
 
 import app.services.research_service as research_service
 from app.models.research import ResearchMode, ResearchRequest, TokenBudget
+from app.models.sources import SearchResponse, SearchResult, SourceType
 
 
 @pytest.mark.asyncio
@@ -127,3 +128,84 @@ async def test_deep_mode_tracks_sources_from_each_iterative_search(patch_researc
 
     assert source_queries == search_queries
     assert all(search["deep"] is True for search in state["search_queries"])
+
+
+@pytest.mark.asyncio
+async def test_normal_mode_deduplicates_repeated_source_urls(monkeypatch, patch_research):
+    async def duplicate_search(query, *, deep=False):
+        patch_research["search_queries"].append({"query": query, "deep": deep})
+        return SearchResponse(
+            answer=f"Finding for {query}.",
+            sources=[
+                SearchResult(
+                    title="Reusable rocket analysis",
+                    url="https://example.com/reusable-rockets/?utm_source=test#section",
+                    snippet="First copy.",
+                    source_type=SourceType.WEB,
+                ),
+                SearchResult(
+                    title="Reusable rocket analysis",
+                    url="https://example.com/reusable-rockets",
+                    snippet="Second copy.",
+                    source_type=SourceType.WEB,
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(research_service, "search_web", duplicate_search)
+
+    result = await research_service.run_research(
+        ResearchRequest(
+            query="What changed in reusable rockets?",
+            mode=ResearchMode.NORMAL,
+        )
+    )
+
+    assert len(patch_research["sources"]) == 1
+    assert len(result.sources) == 1
+    assert result.response.count("Reusable rocket analysis") == 1
+
+
+@pytest.mark.asyncio
+async def test_deep_streaming_emits_each_source_url_once(monkeypatch, patch_research):
+    events = []
+
+    async def duplicate_search(query, *, deep=False):
+        patch_research["search_queries"].append({"query": query, "deep": deep})
+        return SearchResponse(
+            answer=f"Finding for {query}.",
+            sources=[
+                SearchResult(
+                    title="Battery supply chain report",
+                    url="https://example.com/batteries?utm_campaign=test",
+                    snippet="First copy.",
+                    source_type=SourceType.WEB,
+                ),
+                SearchResult(
+                    title="Battery supply chain report",
+                    url="https://example.com/batteries/",
+                    snippet="Second copy.",
+                    source_type=SourceType.WEB,
+                ),
+            ],
+        )
+
+    async def progress(message_type, data):
+        events.append({"type": message_type.value, "data": data})
+
+    monkeypatch.setattr(research_service, "search_web", duplicate_search)
+
+    result = await research_service.run_research_streaming(
+        request=ResearchRequest(
+            query="Deep research battery supply chains",
+            mode=ResearchMode.DEEP,
+        ),
+        progress=progress,
+        is_cancelled=lambda: False,
+    )
+
+    source_events = [event for event in events if event["type"] == "source"]
+
+    assert len(source_events) == 1
+    assert len(patch_research["sources"]) == 1
+    assert len(result.sources) == 1
