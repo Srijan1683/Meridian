@@ -31,8 +31,6 @@ The project is designed to demonstrate practical AI application architecture: re
 
 ## Tech Stack
 
-### Backend
-
 - Python
 - FastAPI
 - Uvicorn
@@ -49,22 +47,6 @@ The project is designed to demonstrate practical AI application architecture: re
 - pytest
 - pytest-asyncio
 
-### Frontend
-
-- React
-- Vite
-- Tailwind CSS
-- PostCSS
-- Autoprefixer
-- lucide-react
-- Browser WebSocket API
-- Browser localStorage
-
-### Infrastructure
-
-- Docker Compose for Postgres
-- SQL migration for schema setup
-- Environment-based configuration through `.env`
 
 ## Architecture
 
