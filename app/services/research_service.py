@@ -18,6 +18,7 @@ from app.models.sessions import ConversationRole
 from app.services.citation_service import (
     append_source_list,
     extract_citations,
+    limit_citations_per_paragraph,
     validate_citations,
 )
 from app.memory.long_term import (
@@ -168,19 +169,31 @@ def _source_dedupe_key(url: str, title: str = "") -> str:
     return f"url:{normalized}"
 
 
+def _source_title_key(title: str) -> str:
+    normalized = " ".join(title.lower().split())
+    normalized = normalized.replace("...", "")
+    return "".join(
+        character for character in normalized if character.isalnum() or character.isspace()
+    )
+
+
 def _unique_search_results(
     sources: list[SearchResult],
     seen_keys: set[str],
+    seen_title_keys: set[str],
 ) -> list[SearchResult]:
     unique_sources: list[SearchResult] = []
 
     for source in sources:
         key = _source_dedupe_key(source.url, source.title)
+        title_key = _source_title_key(source.title)
 
-        if key in seen_keys:
+        if key in seen_keys or (title_key and title_key in seen_title_keys):
             continue
 
         seen_keys.add(key)
+        if title_key:
+            seen_title_keys.add(title_key)
         unique_sources.append(source)
 
     return unique_sources
@@ -293,6 +306,7 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
     all_source_rows: list[dict] = []
     search_answers: list[str] = []
     seen_source_keys: set[str] = set()
+    seen_source_title_keys: set[str] = set()
     
     for search_query in search_queries:
         search_result = await search_web(
@@ -302,7 +316,11 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         
         search_answers.append(search_result.answer)
     
-        unique_sources = _unique_search_results(search_result.sources, seen_source_keys)
+        unique_sources = _unique_search_results(
+            search_result.sources,
+            seen_source_keys,
+            seen_source_title_keys,
+        )
 
         source_rows = await create_sources_for_search(
             session_id=session_id,
@@ -321,6 +339,10 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         sources=sources,
         long_term_context=long_term_context,
         short_term_context=short_term_context,
+    )
+    response_text = limit_citations_per_paragraph(
+        response_text=response_text,
+        sources=sources,
     )
     
     invalid_citations = validate_citations(
@@ -420,6 +442,7 @@ async def run_research_streaming(
     all_source_rows: list[dict] = []
     search_answers: list[str] = []
     seen_source_keys: set[str] = set()
+    seen_source_title_keys: set[str] = set()
     
     for index, search_query in enumerate(search_queries, start=1):
         if is_cancelled():
@@ -442,7 +465,11 @@ async def run_research_streaming(
         
         search_answers.append(search_result.answer)
         
-        unique_sources = _unique_search_results(search_result.sources, seen_source_keys)
+        unique_sources = _unique_search_results(
+            search_result.sources,
+            seen_source_keys,
+            seen_source_title_keys,
+        )
 
         source_rows = await create_sources_for_search(
             session_id=session_id,
@@ -478,6 +505,10 @@ async def run_research_streaming(
             sources=sources,
             long_term_context=long_term_context,
             short_term_context=short_term_context,
+        )
+        response_text = limit_citations_per_paragraph(
+            response_text=response_text,
+            sources=sources,
         )
         
     invalid_citations = validate_citations(
