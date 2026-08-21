@@ -35,6 +35,7 @@ Write a comprehensive research answer.
 
 Requirements:
 - Every factual claim should include a citation like [1], [2], or [3].
+- Use no more than three citations in one paragraph; choose the most informative sources.
 - Use only citation numbers from the provided Sources list.
 - If a factual claim cannot be cited, write "(unverified)" after it.
 - Cover the key angles investigated.
@@ -51,6 +52,7 @@ Write a concise research answer.
 Requirements:
 - Answer directly.
 - Every factual claim must include a citation like [1] or [2].
+- Use no more than three citations in one paragraph; choose the most informative sources.
 - Use only citation numbers from the provided Sources list.
 - If a factual claim cannot be cited, write "(unverified)" after it.
 - Use only the provided sources.
