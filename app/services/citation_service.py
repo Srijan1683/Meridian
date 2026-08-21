@@ -5,6 +5,7 @@ from app.models.sources import Source
 
 
 CITATION_PATTERN = re.compile(r"\[(\d+)]")
+WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
 
 def append_source_list(response_text: str, sources: list[Source]) -> str:
@@ -17,6 +18,61 @@ def append_source_list(response_text: str, sources: list[Source]) -> str:
         lines.append(f"[{index}] {source.title} - {source.url}")
         
     return "\n".join(lines)
+
+
+def _source_relevance_score(paragraph: str, source: Source) -> float:
+    paragraph_words = set(WORD_PATTERN.findall(paragraph.lower()))
+    source_text = f"{source.title} {source.snippet}".lower()
+    source_words = set(WORD_PATTERN.findall(source_text))
+    overlap = len(paragraph_words & source_words)
+    information_weight = min(len(source.snippet), 500) / 500
+
+    return (overlap * 10) + information_weight
+
+
+def limit_citations_per_paragraph(
+    response_text: str,
+    sources: list[Source],
+    max_citations: int = 3,
+) -> str:
+    if max_citations < 1 or not sources:
+        return response_text
+
+    paragraphs = re.split(r"(\n\s*\n)", response_text)
+    limited_parts: list[str] = []
+
+    for paragraph in paragraphs:
+        citation_indexes = [
+            int(match.group(1))
+            for match in CITATION_PATTERN.finditer(paragraph)
+            if 1 <= int(match.group(1)) <= len(sources)
+        ]
+        unique_indexes = list(dict.fromkeys(citation_indexes))
+
+        if len(unique_indexes) <= max_citations:
+            limited_parts.append(paragraph)
+            continue
+
+        ranked_indexes = sorted(
+            unique_indexes,
+            key=lambda index: (
+                _source_relevance_score(paragraph, sources[index - 1]),
+                -index,
+            ),
+            reverse=True,
+        )
+        kept_indexes = set(ranked_indexes[:max_citations])
+
+        limited_parts.append(
+            CITATION_PATTERN.sub(
+                lambda match: match.group(0)
+                if int(match.group(1)) in kept_indexes
+                else "",
+                paragraph,
+            )
+        )
+
+    return "".join(limited_parts)
 
 
 def _sentence_for_position(text: str, position: int) -> str:
