@@ -6,6 +6,7 @@ from app.models.sources import Source, SourceType
 from app.services.citation_service import (
     append_source_list,
     extract_citations,
+    limit_citations_per_paragraph,
     validate_citations,
 )
 
@@ -75,3 +76,49 @@ def test_extract_citations_deduplicates_repeated_reference(sample_sources):
 
     assert len(citations) == 1
     assert citations[0]["citation_index"] == 1
+
+
+def test_limit_citations_per_paragraph_keeps_three_most_relevant():
+    session_id = uuid4()
+    sources = [
+        Source(
+            source_id=uuid4(),
+            session_id=session_id,
+            url=f"https://example.com/{index}",
+            title=title,
+            snippet=snippet,
+            source_type=SourceType.WEB,
+            search_query="fluid mechanics",
+            retrieved_at=datetime.utcnow(),
+        )
+        for index, (title, snippet) in enumerate(
+            [
+                ("Thin note", "Short."),
+                (
+                    "Fluid mechanics equations",
+                    "Fluid mechanics uses continuity, Navier Stokes, pressure, viscosity, and flow analysis.",
+                ),
+                (
+                    "Boundary layers",
+                    "Boundary layer flow explains viscosity, drag, turbulence, and engineering fluid behavior.",
+                ),
+                (
+                    "Fluid applications",
+                    "Engineering applications of fluid mechanics include pumps, pipes, aerodynamics, and CFD.",
+                ),
+            ],
+            start=1,
+        )
+    ]
+    text = (
+        "Fluid mechanics studies pressure, viscosity, flow, boundary layers, "
+        "and engineering applications [1][2][3][4]."
+    )
+
+    limited = limit_citations_per_paragraph(text, sources)
+
+    assert "[1]" not in limited
+    assert "[2]" in limited
+    assert "[3]" in limited
+    assert "[4]" in limited
+    assert limited.count("[") == 3
