@@ -58,6 +58,15 @@ function sourceDedupeKey(source) {
   }
 }
 
+function sourceTitleKey(source) {
+  return source.title
+    .toLowerCase()
+    .replace(/\.\.\./g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function Metric({ icon: Icon, label, value, accent = "text-signal-cyan" }) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
@@ -326,11 +335,16 @@ export default function App() {
 
   const sourceList = useMemo(() => {
     const map = new Map();
+    const titleKeys = new Set();
     for (const source of sources) {
       const normalized = normalizeSource(source);
       const key = sourceDedupeKey(normalized);
-      if (!map.has(key)) {
+      const titleKey = sourceTitleKey(normalized);
+      if (!map.has(key) && (!titleKey || !titleKeys.has(titleKey))) {
         map.set(key, normalized);
+        if (titleKey) {
+          titleKeys.add(titleKey);
+        }
       }
     }
     return Array.from(map.values());
