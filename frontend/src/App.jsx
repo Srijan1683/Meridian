@@ -247,17 +247,17 @@ function MarkdownResponse({ text }) {
 
     const trimmed = block.text.trim();
 
-    if (trimmed.startsWith("## ") && !trimmed.startsWith("### ")) {
+    if (/^##\s+/.test(trimmed)) {
       sectionIndex += 1;
       continue;
     }
 
-    if (trimmed.startsWith("# ") && !trimmed.startsWith("## ")) {
+    if (/^#\s+/.test(trimmed)) {
       sectionIndex = -1;
       continue;
     }
 
-    if (trimmed.startsWith("### ") && sectionIndex >= 0) {
+    if (/^###\s+/.test(trimmed) && sectionIndex >= 0) {
       childHeadingCounts.set(sectionIndex, (childHeadingCounts.get(sectionIndex) || 0) + 1);
     }
   }
@@ -278,8 +278,16 @@ function MarkdownResponse({ text }) {
           return <div key={blockIndex} className="h-3" />;
         }
 
-        if (trimmed.startsWith("### ")) {
-          let heading = trimmed.slice(4);
+        if (/^####\s+/.test(trimmed)) {
+          return (
+            <h4 key={blockIndex} className="mb-2 mt-4 text-base font-semibold text-white">
+              {parseInlineText(trimmed.replace(/^####\s+/, ""))}
+            </h4>
+          );
+        }
+
+        if (/^###\s+/.test(trimmed)) {
+          let heading = trimmed.replace(/^###\s+/, "");
 
           if (sectionIndex >= 0 && (childHeadingCounts.get(sectionIndex) || 0) > 1) {
             const childIndex = (childHeadingIndexes.get(sectionIndex) || 0) + 1;
@@ -297,22 +305,22 @@ function MarkdownResponse({ text }) {
           );
         }
 
-        if (trimmed.startsWith("## ")) {
+        if (/^##\s+/.test(trimmed)) {
           sectionIndex += 1;
 
           return (
             <h2 key={blockIndex} className="mb-3 mt-6 text-xl font-bold text-white">
-              {parseInlineText(trimmed.slice(3))}
+              {parseInlineText(trimmed.replace(/^##\s+/, ""))}
             </h2>
           );
         }
 
-        if (trimmed.startsWith("# ")) {
+        if (/^#\s+/.test(trimmed)) {
           sectionIndex = -1;
 
           return (
             <h1 key={blockIndex} className="mb-3 mt-6 text-2xl font-extrabold text-white">
-              {parseInlineText(trimmed.slice(2))}
+              {parseInlineText(trimmed.replace(/^#\s+/, ""))}
             </h1>
           );
         }
