@@ -40,6 +40,8 @@ Requirements:
   important mechanisms or concepts, key evidence, applications or implications,
   limitations, and a short concluding synthesis when supported by the sources.
 - Use multiple substantial paragraphs and section headings when the question is broad.
+- When a section has multiple lower-level subheadings, write those subheadings as
+  numbered items, such as "### 1. Engineering" and "### 2. Medicine".
 - Every factual claim should include a citation like [1], [2], or [3].
 - Use no more than three citations in one paragraph; choose the most informative sources.
 - Use only citation numbers from the provided Sources list.

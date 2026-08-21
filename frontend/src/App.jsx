@@ -237,6 +237,34 @@ function MarkdownResponse({ text }) {
     index += 1;
   }
 
+  let sectionIndex = -1;
+  const childHeadingCounts = new Map();
+
+  for (const block of blocks) {
+    if (block.type !== "line") {
+      continue;
+    }
+
+    const trimmed = block.text.trim();
+
+    if (trimmed.startsWith("## ") && !trimmed.startsWith("### ")) {
+      sectionIndex += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("# ") && !trimmed.startsWith("## ")) {
+      sectionIndex = -1;
+      continue;
+    }
+
+    if (trimmed.startsWith("### ") && sectionIndex >= 0) {
+      childHeadingCounts.set(sectionIndex, (childHeadingCounts.get(sectionIndex) || 0) + 1);
+    }
+  }
+
+  sectionIndex = -1;
+  const childHeadingIndexes = new Map();
+
   return (
     <article className="response-markdown w-full max-w-full overflow-hidden text-[15px] leading-7 text-slate-200 lg:max-w-4xl">
       {blocks.map((block, blockIndex) => {
@@ -251,14 +279,27 @@ function MarkdownResponse({ text }) {
         }
 
         if (trimmed.startsWith("### ")) {
+          let heading = trimmed.slice(4);
+
+          if (sectionIndex >= 0 && (childHeadingCounts.get(sectionIndex) || 0) > 1) {
+            const childIndex = (childHeadingIndexes.get(sectionIndex) || 0) + 1;
+            childHeadingIndexes.set(sectionIndex, childIndex);
+
+            if (!/^\d+\.\s+/.test(heading)) {
+              heading = `${childIndex}. ${heading}`;
+            }
+          }
+
           return (
             <h3 key={blockIndex} className="mb-2 mt-5 text-lg font-bold text-white">
-              {parseInlineText(trimmed.slice(4))}
+              {parseInlineText(heading)}
             </h3>
           );
         }
 
         if (trimmed.startsWith("## ")) {
+          sectionIndex += 1;
+
           return (
             <h2 key={blockIndex} className="mb-3 mt-6 text-xl font-bold text-white">
               {parseInlineText(trimmed.slice(3))}
@@ -267,6 +308,8 @@ function MarkdownResponse({ text }) {
         }
 
         if (trimmed.startsWith("# ")) {
+          sectionIndex = -1;
+
           return (
             <h1 key={blockIndex} className="mb-3 mt-6 text-2xl font-extrabold text-white">
               {parseInlineText(trimmed.slice(2))}
