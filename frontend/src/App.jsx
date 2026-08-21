@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
-  Brain,
   ChevronDown,
   CheckCircle2,
   Copy,
-  Database,
   History,
   Loader2,
   PauseCircle,
-  RotateCcw,
   Search,
   Send,
   Sparkles,
@@ -20,14 +17,6 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const WS_BASE = API_BASE.replace(/^http/, "ws");
-
-const statusCopy = {
-  idle: "Ready",
-  running: "Researching",
-  complete: "Complete",
-  error: "Needs attention",
-  cancelled: "Cancelled",
-};
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
@@ -65,18 +54,6 @@ function sourceTitleKey(source) {
     .replace(/[^\p{L}\p{N}\s]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function Metric({ icon: Icon, label, value, accent = "text-signal-cyan" }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <Icon className={classNames("h-4 w-4", accent)} />
-        {label}
-      </div>
-      <div className="mt-2 font-mono text-2xl font-semibold text-white">{value}</div>
-    </div>
-  );
 }
 
 function HistoryList({ items, onSelect, onDelete }) {
@@ -123,41 +100,56 @@ function HistoryList({ items, onSelect, onDelete }) {
 
 function SourcesPanel({ sources }) {
   return (
-    <section className="flex min-h-0 w-full max-w-full flex-col rounded-lg border border-white/10 bg-ink-900/76 p-4 shadow-panel backdrop-blur">
-      <div className="flex shrink-0 items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Sources</h2>
-        <span className="rounded-full border border-signal-cyan/30 bg-signal-cyan/10 px-2 py-0.5 font-mono text-xs text-signal-cyan">
-          {sources.length}
-        </span>
-      </div>
+    <div className="thin-scrollbar max-h-[420px] space-y-3 overflow-auto pr-1">
+      {sources.length ? (
+        sources.map((source, index) => (
+          <a
+            key={source.id}
+            href={source.url}
+            target="_blank"
+            rel="noreferrer"
+            className="block max-w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-signal-cyan/15 font-mono text-xs text-signal-cyan">
+                {index + 1}
+              </span>
+              <h3 className="min-w-0 break-words text-sm font-medium leading-5 text-white">{source.title}</h3>
+            </div>
+            <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-400">{source.snippet}</p>
+            <p className="mt-2 truncate font-mono text-[11px] text-signal-cyan/80">{source.url}</p>
+          </a>
+        ))
+      ) : (
+        <div className="flex min-h-[180px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] p-5 text-center text-sm leading-6 text-slate-500">
+          Sources appear here as Meridian finds them.
+        </div>
+      )}
+    </div>
+  );
+}
 
-      <div className="thin-scrollbar mt-4 min-h-0 flex-1 space-y-3 overflow-auto pr-1">
-        {sources.length ? (
-          sources.map((source, index) => (
-            <a
-              key={source.id}
-              href={source.url}
-              target="_blank"
-              rel="noreferrer"
-              className="block max-w-full rounded-lg border border-white/10 bg-white/[0.04] p-3 transition hover:border-signal-cyan/40 hover:bg-white/[0.065]"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-signal-cyan/15 font-mono text-xs text-signal-cyan">
-                  {index + 1}
-                </span>
-                <h3 className="min-w-0 break-words text-sm font-medium leading-5 text-white">{source.title}</h3>
-              </div>
-              <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-400">{source.snippet}</p>
-              <p className="mt-2 truncate font-mono text-[11px] text-signal-cyan/80">{source.url}</p>
-            </a>
-          ))
-        ) : (
-          <div className="flex min-h-[260px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] p-5 text-center text-sm leading-6 text-slate-500 lg:h-full">
-            Sources appear here as Meridian finds them.
-          </div>
+function HeaderDropdown({ label, count, children, align = "right" }) {
+  return (
+    <details className="group relative">
+      <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 text-sm font-medium text-slate-200 transition hover:border-signal-cyan/40 hover:text-white">
+        <span>{label}</span>
+        {count !== undefined ? (
+          <span className="rounded-full border border-signal-cyan/30 bg-signal-cyan/10 px-2 py-0.5 font-mono text-[11px] text-signal-cyan">
+            {count}
+          </span>
+        ) : null}
+        <ChevronDown className="h-4 w-4 text-slate-500 transition group-open:rotate-180" />
+      </summary>
+      <div
+        className={classNames(
+          "absolute top-12 z-30 w-[min(calc(100vw-2rem),420px)] rounded-lg border border-white/10 bg-ink-950/95 p-4 shadow-panel backdrop-blur",
+          align === "left" ? "left-0" : "right-0"
         )}
+      >
+        {children}
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -295,7 +287,7 @@ function MarkdownResponse({ text }) {
           const [number] = trimmed.split(".");
           return (
             <div key={blockIndex} className="my-1 flex min-w-0 max-w-full gap-3">
-              <span className="font-mono text-sm text-signal-cyan">{number}.</span>
+              <span className="w-8 shrink-0 whitespace-nowrap text-right font-mono text-sm text-signal-cyan">{number}.</span>
               <p className="min-w-0 max-w-full">{parseInlineText(trimmed.replace(/^\d+\.\s+/, ""))}</p>
             </div>
           );
@@ -605,7 +597,7 @@ export default function App() {
   return (
     <main className={classNames("app-shell min-h-screen w-full max-w-full overflow-x-hidden px-3 py-4 text-slate-100 sm:px-5 lg:h-screen lg:overflow-hidden", mode === "deep" ? "theme-deep" : "theme-normal")}>
       <div className="mx-auto flex min-h-screen w-full max-w-[1720px] flex-col gap-4 overflow-x-hidden lg:h-full lg:min-h-0">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <header className="flex shrink-0 flex-col gap-4 border-b border-white/10 pb-4 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-signal-cyan/30 bg-signal-cyan/10 shadow-glow">
               <Sparkles className="h-5 w-5 text-signal-cyan" />
@@ -616,23 +608,35 @@ export default function App() {
             </div>
           </div>
 
-          <div className="hidden items-center gap-3 sm:flex">
-            <div className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-sm text-slate-300">
-              <span className="mr-2 text-slate-500">Status</span>
-              <span className="font-medium text-white">{statusCopy[status]}</span>
-            </div>
-            <button
-              type="button"
-              onClick={resetWorkspace}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 text-sm font-medium text-slate-200 transition hover:border-signal-cyan/40 hover:text-white"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </button>
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto">
+            <HeaderDropdown label="Tokens" count={tokenUsage?.total_tokens ?? 0} align="right">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                  <div className="text-xs text-slate-500">This session</div>
+                  <div className="mt-1 font-mono text-xl font-semibold text-white">{memory.short}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                  <div className="text-xs text-slate-500">Past sessions</div>
+                  <div className="mt-1 font-mono text-xl font-semibold text-white">{memory.long}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                  <div className="text-xs text-slate-500">Prompt</div>
+                  <div className="mt-1 font-mono text-xl font-semibold text-white">{tokenUsage?.prompt_tokens ?? 0}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                  <div className="text-xs text-slate-500">Answer</div>
+                  <div className="mt-1 font-mono text-xl font-semibold text-white">{tokenUsage?.completion_tokens ?? 0}</div>
+                </div>
+              </div>
+            </HeaderDropdown>
+
+            <HeaderDropdown label="Sources" count={sourceList.length} align="right">
+              <SourcesPanel sources={sourceList} />
+            </HeaderDropdown>
           </div>
         </header>
 
-        <section className="grid w-full max-w-full flex-1 gap-4 overflow-x-hidden lg:min-h-0 lg:grid-cols-[290px_minmax(0,1fr)_280px] xl:grid-cols-[330px_minmax(0,1fr)_310px]">
+        <section className="grid w-full max-w-full flex-1 gap-4 overflow-x-hidden lg:min-h-0 lg:grid-cols-[290px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)]">
           <aside className="flex w-full max-w-full flex-col rounded-lg border border-white/10 bg-ink-900/78 p-4 shadow-panel backdrop-blur lg:min-h-0">
             <div className="shrink-0">
               <div className="flex items-center justify-between">
@@ -806,37 +810,6 @@ export default function App() {
             </div>
           </section>
 
-          <aside className="hidden min-h-0 flex-col gap-4 lg:flex">
-            <section className="grid shrink-0 grid-cols-2 gap-3">
-              <Metric icon={Brain} label="This session" value={memory.short} accent="text-signal-green" />
-              <Metric icon={Database} label="Past sessions" value={memory.long} accent="text-signal-amber" />
-            </section>
-
-            <section className="shrink-0 rounded-lg border border-white/10 bg-ink-900/76 p-4 shadow-panel backdrop-blur">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Tokens</h2>
-                <span className="rounded-full border border-signal-cyan/30 bg-signal-cyan/10 px-2 py-0.5 font-mono text-xs text-signal-cyan">
-                  {tokenUsage?.total_tokens ?? 0}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
-                  <div className="font-mono text-lg font-semibold text-white">{tokenUsage?.prompt_tokens ?? 0}</div>
-                  <div className="mt-1 text-xs text-slate-500">Prompt</div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
-                  <div className="font-mono text-lg font-semibold text-white">{tokenUsage?.completion_tokens ?? 0}</div>
-                  <div className="mt-1 text-xs text-slate-500">Answer</div>
-                </div>
-              </div>
-            </section>
-
-            <SourcesPanel sources={sourceList} />
-          </aside>
-
-          <div className="w-full max-w-full lg:hidden">
-            <SourcesPanel sources={sourceList} />
-          </div>
         </section>
       </div>
     </main>

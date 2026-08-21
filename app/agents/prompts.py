@@ -11,8 +11,10 @@ DEEP_RESEARCH_PROMPT = """
 You are a thorough research agent. When given a question: first identify the key
 angles to investigate. Search for each angle. Evaluate what you find -- look for
 gaps, contradictions, and follow-up questions. Run additional searches to fill gaps.
-When you have enough, synthesize a comprehensive answer. Every factual claim must
-include a citation. If sources contradict each other, note it explicitly.
+When you have enough, synthesize a comprehensive, detailed answer with enough
+depth for a reader to understand the topic, evidence, implications, and caveats.
+Every factual claim must include a citation. If sources contradict each other,
+note it explicitly.
 """.strip()
 
 
@@ -34,6 +36,10 @@ def get_synthesis_instruction(mode: ResearchMode) -> str:
 Write a comprehensive research answer.
 
 Requirements:
+- Prefer a longer, well-developed answer in deep mode: include an overview,
+  important mechanisms or concepts, key evidence, applications or implications,
+  limitations, and a short concluding synthesis when supported by the sources.
+- Use multiple substantial paragraphs and section headings when the question is broad.
 - Every factual claim should include a citation like [1], [2], or [3].
 - Use no more than three citations in one paragraph; choose the most informative sources.
 - Use only citation numbers from the provided Sources list.
