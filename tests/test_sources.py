@@ -167,6 +167,42 @@ async def test_normal_mode_deduplicates_repeated_source_urls(monkeypatch, patch_
 
 
 @pytest.mark.asyncio
+async def test_normal_mode_deduplicates_repeated_source_titles(monkeypatch, patch_research):
+    async def duplicate_title_search(query, *, deep=False):
+        patch_research["search_queries"].append({"query": query, "deep": deep})
+        return SearchResponse(
+            answer=f"Finding for {query}.",
+            sources=[
+                SearchResult(
+                    title="Fluid Mechanics - an overview",
+                    url="https://www.sciencedirect.com/topics/engineering/fluid-mechanics",
+                    snippet="Engineering overview.",
+                    source_type=SourceType.WEB,
+                ),
+                SearchResult(
+                    title="Fluid Mechanics - an overview",
+                    url="https://www.sciencedirect.com/topics/earth-and-planetary-sciences/fluid-mechanics",
+                    snippet="Earth sciences overview.",
+                    source_type=SourceType.WEB,
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(research_service, "search_web", duplicate_title_search)
+
+    result = await research_service.run_research(
+        ResearchRequest(
+            query="Tell me about fluid mechanics in detail",
+            mode=ResearchMode.NORMAL,
+        )
+    )
+
+    assert len(patch_research["sources"]) == 1
+    assert len(result.sources) == 1
+    assert result.response.count("Fluid Mechanics - an overview") == 1
+
+
+@pytest.mark.asyncio
 async def test_deep_streaming_emits_each_source_url_once(monkeypatch, patch_research):
     events = []
 
