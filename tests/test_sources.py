@@ -1,8 +1,8 @@
 import pytest
 
-import app.services.research_service as research_service
 from app.models.research import ResearchMode, ResearchRequest, TokenBudget
 from app.models.sources import SearchResponse, SearchResult, SourceType
+from app.services import research_service
 
 
 @pytest.mark.asyncio
@@ -46,7 +46,7 @@ async def test_response_source_list_matches_returned_sources(patch_research):
     )
 
     for index, source in enumerate(result.sources, start=1):
-        expected_line = f"[{index}] {source.title} - {str(source.url)}"
+        expected_line = f"[{index}] {source.title} - {source.url!s}"
         assert expected_line in result.response
 
     assert result.response.count("Sources:") == 1
@@ -131,7 +131,9 @@ async def test_deep_mode_tracks_sources_from_each_iterative_search(patch_researc
 
 
 @pytest.mark.asyncio
-async def test_normal_mode_deduplicates_repeated_source_urls(monkeypatch, patch_research):
+async def test_normal_mode_deduplicates_repeated_source_urls(
+    monkeypatch, patch_research
+):
     async def duplicate_search(query, *, deep=False):
         patch_research["search_queries"].append({"query": query, "deep": deep})
         return SearchResponse(
@@ -167,7 +169,9 @@ async def test_normal_mode_deduplicates_repeated_source_urls(monkeypatch, patch_
 
 
 @pytest.mark.asyncio
-async def test_normal_mode_deduplicates_repeated_source_titles(monkeypatch, patch_research):
+async def test_normal_mode_deduplicates_repeated_source_titles(
+    monkeypatch, patch_research
+):
     async def duplicate_title_search(query, *, deep=False):
         patch_research["search_queries"].append({"query": query, "deep": deep})
         return SearchResponse(

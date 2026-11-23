@@ -2,28 +2,23 @@ from collections.abc import Awaitable, Callable
 from time import perf_counter
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from app.models.websocket import WSMessageType
-
 from openai import AsyncOpenAI
-from app.config import settings
+
 from app.agents.prompts import (
-    get_research_prompt, 
+    get_research_prompt,
     get_search_count,
     get_synthesis_instruction,
 )
-from app.db.repositories.sources import create_sources_for_search, create_source_citations
-from app.db.repositories.sessions import create_session
+from app.config import settings
 from app.db.repositories.messages import create_message
-from app.models.sessions import ConversationRole
-from app.services.citation_service import (
-    append_source_list,
-    extract_citations,
-    limit_citations_per_paragraph,
-    validate_citations,
+from app.db.repositories.sessions import create_session
+from app.db.repositories.sources import (
+    create_source_citations,
+    create_sources_for_search,
 )
 from app.memory.long_term import (
     format_long_term_memory_context,
-    retrieve_long_term_memories
+    retrieve_long_term_memories,
 )
 from app.memory.short_term import (
     format_session_memory_context,
@@ -31,10 +26,22 @@ from app.memory.short_term import (
     store_interaction_memory,
 )
 from app.models.memory import MemoryContext
-from app.models.research import ResearchMode, ResearchResponse, ResearchRequest, TokenBudget
+from app.models.research import (
+    ResearchMode,
+    ResearchRequest,
+    ResearchResponse,
+    TokenBudget,
+)
+from app.models.sessions import ConversationRole
 from app.models.sources import SearchResult, Source, SourceType
+from app.models.websocket import WSMessageType
 from app.search.tavily import search_web
-
+from app.services.citation_service import (
+    append_source_list,
+    extract_citations,
+    limit_citations_per_paragraph,
+    validate_citations,
+)
 
 MAX_TAVILY_QUERY_LENGTH = 400
 REFERENTIAL_MEMORY_TERMS = (
@@ -86,32 +93,30 @@ async def build_short_term_context(session_id, query: str) -> tuple[str, int]:
             limit=5,
             min_similarity=-1.0,
         )
-    
+
     return format_session_memory_context(memories), len(memories)
 
 
 def _trim_query(query: str) -> str:
     query = " ".join(query.split())
-    
+
     if len(query) <= MAX_TAVILY_QUERY_LENGTH:
         return query
-    
+
     return query[:MAX_TAVILY_QUERY_LENGTH].rsplit(" ", 1)[0]
 
 
 def build_search_queries(
-    user_query: str,
-    mode: ResearchMode,
-    long_term_context: str
+    user_query: str, mode: ResearchMode, long_term_context: str
 ) -> list[str]:
     base_query = " ".join(user_query.split())
-    
+
     if mode == ResearchMode.NORMAL:
         queries = [
             base_query,
             f"{base_query} latest reliable sources",
         ]
-        
+
     else:
         queries = [
             base_query,
@@ -121,10 +126,10 @@ def build_search_queries(
             f"{base_query} challenges limitations contradictions",
             f"{base_query} future outlook",
         ]
-        
+
     if long_term_context:
         queries.append(f"{base_query} related prior research context")
-        
+
     max_queries = get_search_count(mode)
     return [_trim_query(query) for query in queries[:max_queries]]
 
@@ -173,7 +178,9 @@ def _source_title_key(title: str) -> str:
     normalized = " ".join(title.lower().split())
     normalized = normalized.replace("...", "")
     return "".join(
-        character for character in normalized if character.isalnum() or character.isspace()
+        character
+        for character in normalized
+        if character.isalnum() or character.isspace()
     )
 
 
@@ -208,12 +215,10 @@ async def synthesize_response(
     short_term_context: str = "",
 ) -> tuple[str, TokenBudget]:
     source_lines = []
-    
+
     for index, source in enumerate(sources, start=1):
         source_lines.append(
-            f"[{index}] {source.title}\n"
-            f"URL: {source.url}\n"
-            f"Snippet: {source.snippet}"
+            f"[{index}] {source.title}\nURL: {source.url}\nSnippet: {source.snippet}"
         )
 
     finding_lines = []
@@ -281,41 +286,41 @@ Write the final answer now.
 async def run_research(request: ResearchRequest) -> ResearchResponse:
     session = await create_session(session_id=request.session_id)
     session_id = session["session_id"]
-    
+
     retrieval_start = perf_counter()
-    
+
     short_term_context, short_term_count = await build_short_term_context(
         session_id=session_id,
         query=request.query,
     )
 
     long_term_context, long_term_count = await build_long_term_context(request.query)
-    
+
     retrieval_time_ms = int((perf_counter() - retrieval_start) * 1000)
-    
+
     memory_context = "\n\n".join(
         context for context in [short_term_context, long_term_context] if context
     )
-    
+
     search_queries = build_search_queries(
         user_query=request.query,
         mode=request.mode,
         long_term_context=memory_context,
     )
-    
+
     all_source_rows: list[dict] = []
     search_answers: list[str] = []
     seen_source_keys: set[str] = set()
     seen_source_title_keys: set[str] = set()
-    
+
     for search_query in search_queries:
         search_result = await search_web(
             query=search_query,
             deep=request.mode == ResearchMode.DEEP,
         )
-        
+
         search_answers.append(search_result.answer)
-    
+
         unique_sources = _unique_search_results(
             search_result.sources,
             seen_source_keys,
@@ -327,11 +332,11 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
             sources=unique_sources,
             search_query=search_query,
         )
-    
+
         all_source_rows.extend(source_rows)
-    
+
     sources = [_source_row_to_model(row) for row in all_source_rows]
-    
+
     response_text, token_usage = await synthesize_response(
         user_query=request.query,
         mode=request.mode,
@@ -344,40 +349,40 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         response_text=response_text,
         sources=sources,
     )
-    
+
     invalid_citations = validate_citations(
         response_text=response_text,
         sources=sources,
     )
-    
+
     if invalid_citations:
         response_text += (
             "\n\nCitation warning: Some citation markers did not map to returned sources: "
             + ", ".join(f"[{index}]" for index in sorted(set(invalid_citations)))
         )
-        
+
     response_with_sources = append_source_list(
         response_text=response_text,
         sources=sources,
     )
-    
+
     assistant_message = await create_message(
         session_id=session_id,
         role=ConversationRole.ASSISTANT,
         content=response_with_sources,
         token_count=token_usage.total_tokens,
     )
-    
+
     citations = extract_citations(
         response_text=response_text,
         sources=sources,
     )
-    
+
     await create_source_citations(
         message_id=assistant_message["message_id"],
         citations=citations,
     )
-    
+
     await store_interaction_memory(
         session_id=session_id,
         query=request.query,
@@ -407,7 +412,7 @@ async def run_research_streaming(
 ) -> ResearchResponse:
     session = await create_session(session_id=request.session_id)
     session_id = session["session_id"]
-    
+
     retrieval_start = perf_counter()
 
     short_term_context, short_term_count = await build_short_term_context(
@@ -422,7 +427,7 @@ async def run_research_streaming(
     memory_context = "\n\n".join(
         context for context in [short_term_context, long_term_context] if context
     )
-    
+
     await progress(
         WSMessageType.MEMORY,
         {
@@ -432,22 +437,22 @@ async def run_research_streaming(
             "context": memory_context,
         },
     )
-    
+
     search_queries = build_search_queries(
         user_query=request.query,
         mode=request.mode,
         long_term_context=memory_context,
     )
-    
+
     all_source_rows: list[dict] = []
     search_answers: list[str] = []
     seen_source_keys: set[str] = set()
     seen_source_title_keys: set[str] = set()
-    
+
     for index, search_query in enumerate(search_queries, start=1):
         if is_cancelled():
             break
-        
+
         await progress(
             WSMessageType.SEARCHING,
             {
@@ -457,14 +462,14 @@ async def run_research_streaming(
                 "total_searches": len(search_queries),
             },
         )
-        
+
         search_result = await search_web(
             query=search_query,
             deep=request.mode == ResearchMode.DEEP,
         )
-        
+
         search_answers.append(search_result.answer)
-        
+
         unique_sources = _unique_search_results(
             search_result.sources,
             seen_source_keys,
@@ -476,12 +481,12 @@ async def run_research_streaming(
             sources=unique_sources,
             search_query=search_query,
         )
-        
+
         all_source_rows.extend(source_rows)
-        
+
         for row in source_rows:
             source = _source_row_to_model(row)
-            
+
             await progress(
                 WSMessageType.SOURCE,
                 {
@@ -489,14 +494,17 @@ async def run_research_streaming(
                     "source": source.model_dump(mode="json"),
                 },
             )
-    
+
     sources = [_source_row_to_model(row) for row in all_source_rows]
-    
+
     if is_cancelled():
         partial_text = "\n\n".join(answer for answer in search_answers if answer)
-        response_text = partial_text or "Research was cancelled before enough information was gathered."
+        response_text = (
+            partial_text
+            or "Research was cancelled before enough information was gathered."
+        )
         token_usage = TokenBudget()
-        
+
     else:
         response_text, token_usage = await synthesize_response(
             user_query=request.query,
@@ -510,35 +518,35 @@ async def run_research_streaming(
             response_text=response_text,
             sources=sources,
         )
-        
+
     invalid_citations = validate_citations(
         response_text=response_text,
         sources=sources,
     )
-    
+
     if invalid_citations:
         response_text += (
             "\n\nCitation warning: Some citation markers did not map to returned sources: "
             + ", ".join(f"[{index}]" for index in sorted(set(invalid_citations)))
         )
-        
+
     response_with_sources = append_source_list(
         response_text=response_text,
         sources=sources,
     )
-    
+
     assistant_message = await create_message(
         session_id=session_id,
         role=ConversationRole.ASSISTANT,
         content=response_with_sources,
         token_count=token_usage.total_tokens,
     )
-    
+
     citations = extract_citations(
         response_text=response_text,
         sources=sources,
     )
-    
+
     await create_source_citations(
         message_id=assistant_message["message_id"],
         citations=citations,
@@ -550,13 +558,13 @@ async def run_research_streaming(
         response=response_with_sources,
         message_id=assistant_message["message_id"],
     )
-    
+
     for chunk_start in range(0, len(response_with_sources), 600):
         if is_cancelled():
             break
-        
-        chunk = response_with_sources[chunk_start:chunk_start + 600]
-        
+
+        chunk = response_with_sources[chunk_start : chunk_start + 600]
+
         await progress(
             WSMessageType.CONTENT,
             {
@@ -564,7 +572,7 @@ async def run_research_streaming(
                 "chunk": chunk,
             },
         )
-        
+
     return ResearchResponse(
         session_id=session_id,
         mode=request.mode,
@@ -574,7 +582,7 @@ async def run_research_streaming(
             short_term_retrieved=short_term_count,
             long_term_retrieved=long_term_count,
             memories=[],
-            retrieval_time_ms=retrieval_time_ms
+            retrieval_time_ms=retrieval_time_ms,
         ),
         token_usage=token_usage,
     )

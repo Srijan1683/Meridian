@@ -51,6 +51,7 @@ async def retrieve_similar(
         documents,
         metadatas,
         distances,
+        strict=False,
     ):
         similarity = _distance_to_similarity(distance)
 
@@ -74,7 +75,7 @@ async def delete_memory(
     memory_id: str,
 ) -> None:
     collection.delete(ids=[memory_id])
-    
+
 
 async def delete_memories(
     collection: Collection,
@@ -82,5 +83,5 @@ async def delete_memories(
 ) -> None:
     if not memory_ids:
         return
-    
+
     collection.delete(ids=memory_ids)

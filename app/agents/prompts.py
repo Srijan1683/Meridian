@@ -1,6 +1,5 @@
 from app.models.research import ResearchMode
 
-
 NORMAL_RESEARCH_PROMPT = """
 You are a research assistant. Answer the user's question using your web search tool.
 Be concise. One or two searches should be enough. Cite your sources.
@@ -21,14 +20,16 @@ note it explicitly.
 def get_research_prompt(mode: ResearchMode) -> str:
     if mode == ResearchMode.DEEP:
         return DEEP_RESEARCH_PROMPT
-    
+
     return NORMAL_RESEARCH_PROMPT
+
 
 def get_search_count(mode: ResearchMode) -> int:
     if mode == ResearchMode.DEEP:
         return 6
-    
+
     return 2
+
 
 def get_synthesis_instruction(mode: ResearchMode) -> str:
     if mode == ResearchMode.DEEP:
@@ -53,7 +54,7 @@ Requirements:
 - Do not invent sources.
 - Do not include a source list; it will be appended automatically.
     """.strip()
-    
+
     return """
 Write a concise research answer.
 

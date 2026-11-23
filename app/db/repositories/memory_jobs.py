@@ -61,10 +61,9 @@ async def create_memory_job(session_id: UUID) -> dict:
 async def claim_next_memory_job() -> dict | None:
     pool = await get_pool()
 
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                """
+    async with pool.acquire() as conn, conn.transaction():
+        row = await conn.fetchrow(
+            """
                 SELECT *
                 FROM memory_jobs
                 WHERE status = 'queued'
@@ -72,22 +71,22 @@ async def claim_next_memory_job() -> dict | None:
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
                 """
-            )
+        )
 
-            if not row:
-                return None
+        if not row:
+            return None
 
-            updated = await conn.fetchrow(
-                """
+        updated = await conn.fetchrow(
+            """
                 UPDATE memory_jobs
                 SET status = 'summarizing'
                 WHERE job_id = $1
                 RETURNING *
                 """,
-                row["job_id"],
-            )
+            row["job_id"],
+        )
 
-            return dict(updated)
+        return dict(updated)
 
 
 async def update_memory_job_status(

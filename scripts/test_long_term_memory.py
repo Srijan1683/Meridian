@@ -2,10 +2,11 @@ import asyncio
 from uuid import uuid4
 
 from app.memory.long_term import (
-    store_long_term_memory,
     format_long_term_memory_context,
     retrieve_long_term_memories,
+    store_long_term_memory,
 )
+
 
 async def main() -> None:
     session_id = uuid4()
@@ -29,7 +30,7 @@ async def main() -> None:
         session_id=session_id,
         summary=(
             "The session explored quantum computing basics, especially quantum entanglement, qubits, superposition, and why error correction matters."
-            ),
+        ),
         key_topics=[
             "quantum computing",
             "quantum entanglement",
@@ -45,20 +46,18 @@ async def main() -> None:
             "https://example.com/quantum-computing-intro",
             "https://example.com/quantum-error-correction",
         ],
-        summary_id= summary_id,
-        
+        summary_id=summary_id,
     )
-    
+
     memories = await retrieve_long_term_memories(
         query="What did i previously learn about entangled particles?",
         limit=3,
         min_similarity=0.2,
     )
-    
+
     context = format_long_term_memory_context(memories)
-    
+
     print(context)
-    
 
     if not memories:
         raise RuntimeError("Expected at least one long-term memory.")

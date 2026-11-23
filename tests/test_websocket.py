@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
-import app.services.research_service as research_service
 from app.main import app
 from app.models.research import ResearchMode, ResearchRequest
 from app.models.websocket import WSMessageType
+from app.services import research_service
 
 
 @pytest.mark.asyncio
@@ -26,13 +26,13 @@ async def test_deep_research_streams_memory_search_sources_and_content(patch_res
     event_types = [event["type"] for event in events]
 
     assert event_types[0] == WSMessageType.MEMORY.value
-    
+
     memory_event = events[0]
-    
+
     assert memory_event["data"]["short_term_retrieved"] == 0
     assert memory_event["data"]["long_term_retrieved"] == 0
     assert memory_event["data"]["context"] == ""
-    
+
     assert event_types.count(WSMessageType.SEARCHING.value) == 6
     assert event_types.count(WSMessageType.SOURCE.value) == 6
     assert event_types[-1] == WSMessageType.CONTENT.value
@@ -55,25 +55,27 @@ async def test_deep_research_streams_memory_search_sources_and_content(patch_res
 
 
 def test_websocket_deep_research_events_are_correct(patch_research):
-    with TestClient(app) as client:
-        with client.websocket_connect("/ws/research") as websocket:
-            websocket.send_json(
-                {
-                    "type": "query",
-                    "data": {
-                        "query": "Deep research battery supply chains",
-                        "mode": "deep",
-                    },
-                }
-            )
+    with (
+        TestClient(app) as client,
+        client.websocket_connect("/ws/research") as websocket,
+    ):
+        websocket.send_json(
+            {
+                "type": "query",
+                "data": {
+                    "query": "Deep research battery supply chains",
+                    "mode": "deep",
+                },
+            }
+        )
 
-            messages = []
-            while True:
-                message = websocket.receive_json()
-                messages.append(message)
+        messages = []
+        while True:
+            message = websocket.receive_json()
+            messages.append(message)
 
-                if message["type"] in {"done", "error"}:
-                    break
+            if message["type"] in {"done", "error"}:
+                break
 
     assert messages[0]["type"] == "memory"
     assert messages[0]["data"]["short_term_retrieved"] == 0

@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from app.db.postgres import get_pool
-from app.models.sources import SearchResult, SourceType
+from app.models.sources import SearchResult
 
 
 async def create_source(
@@ -10,7 +10,7 @@ async def create_source(
     search_query: str,
 ) -> dict:
     pool = await get_pool()
-    
+
     row = await pool.fetchrow(
         """
         INSERT INTO sources (
@@ -31,7 +31,7 @@ async def create_source(
         source.source_type.value,
         search_query,
     )
-    
+
     return dict(row)
 
 
@@ -48,13 +48,13 @@ async def create_sources_for_search(
             search_query=search_query,
         )
         created_sources.append(created)
-        
+
     return created_sources
 
 
 async def list_session_sources(session_id: UUID) -> list[dict]:
     pool = await get_pool()
-    
+
     rows = await pool.fetch(
         """
         SELECT * FROM sources
@@ -63,7 +63,7 @@ async def list_session_sources(session_id: UUID) -> list[dict]:
         """,
         session_id,
     )
-    
+
     return [dict(row) for row in rows]
 
 
@@ -74,7 +74,7 @@ async def create_source_citation(
     claim_text: str,
 ) -> dict:
     pool = await get_pool()
-    
+
     row = await pool.fetchrow(
         """
         INSERT INTO source_citations (
@@ -91,7 +91,7 @@ async def create_source_citation(
         citation_index,
         claim_text,
     )
-    
+
     return dict(row)
 
 
@@ -100,7 +100,7 @@ async def create_source_citations(
     citations: list[dict],
 ) -> list[dict]:
     created: list[dict] = []
-    
+
     for citation in citations:
         created.append(
             await create_source_citation(
@@ -110,5 +110,5 @@ async def create_source_citations(
                 claim_text=citation["claim_text"],
             )
         )
-        
+
     return created

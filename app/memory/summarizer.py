@@ -1,12 +1,11 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from openai import AsyncOpenAI
 
 from app.config import settings
 from app.models.memory import SessionSummary
-
 
 client = AsyncOpenAI(
     api_key=settings.openai_api_key,
@@ -16,18 +15,18 @@ client = AsyncOpenAI(
 
 def _format_messages_for_summary(messages: list[dict]) -> str:
     lines: list[str] = []
-    
+
     for message in messages:
         role = message.get("role", "unknown")
         content = message.get("content", "")
         lines.append(f"{role.upper()}: {content}")
-        
+
     return "\n\n".join(lines)
 
 
 def _build_summary_prompt(messages: list[dict]) -> str:
     transcript = _format_messages_for_summary(messages)
-    
+
     return f"""
 Summarize this research session.
 
@@ -57,7 +56,7 @@ async def summarize_session(
     messages: list[dict],
 ) -> SessionSummary:
     prompt = _build_summary_prompt(messages)
-    
+
     response = await client.chat.completions.create(
         model=settings.summary_model,
         messages=[
@@ -72,10 +71,10 @@ async def summarize_session(
         ],
         temperature=0.2,
     )
-    
+
     content = response.choices[0].message.content or "{}"
     data = json.loads(content)
-    
+
     return SessionSummary(
         session_id=session_id,
         summary=data.get("summary", ""),
@@ -83,5 +82,5 @@ async def summarize_session(
         key_findings=data.get("key_findings", []),
         sources_referenced=data.get("sources_referenced", []),
         unresolved_questions=data.get("unresolved_questions", []),
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )

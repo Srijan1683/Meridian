@@ -1,12 +1,10 @@
 import asyncio
-from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.models.research import ResearchRequest
 from app.models.websocket import WSMessageType, WSResearchRequest, ws_message
 from app.services.research_service import run_research_streaming
-
 
 router = APIRouter()
 
@@ -17,16 +15,16 @@ class ResearchConnection:
         self.cancelled = False
         self.disconnected = False
         self.task: asyncio.Task | None = None
-        
+
     async def send(self, message_type: WSMessageType, data: dict) -> None:
         if self.disconnected:
             return
-        
+
         await self.websocket.send_json(ws_message(message_type, data))
-        
+
     def is_cancelled(self) -> bool:
         return self.cancelled
-    
+
 
 async def _run_research_for_connection(
     connection: ResearchConnection,
@@ -42,7 +40,7 @@ async def _run_research_for_connection(
             progress=connection.send,
             is_cancelled=connection.is_cancelled,
         )
-        
+
         await connection.send(
             WSMessageType.DONE,
             {
@@ -53,27 +51,29 @@ async def _run_research_for_connection(
                 "token_usage": result.token_usage.model_dump(),
             },
         )
-        
-    except Exception as exc:
+
+    except Exception as exc:  # noqa: BLE001
+        # The task boundary must translate any research failure into a WebSocket
+        # error event; asyncio.CancelledError is not an Exception and still propagates.
         await connection.send(
             WSMessageType.ERROR,
             {
                 "error": str(exc),
             },
         )
-        
-        
+
+
 @router.websocket("/ws/research")
 async def websocket_research_endpoint(websocket: WebSocket):
     await websocket.accept()
-    
+
     connection = ResearchConnection(websocket)
-    
+
     try:
         while True:
             payload = await websocket.receive_json()
             message_type = payload.get("type")
-            
+
             if message_type == WSMessageType.CANCEL.value:
                 connection.cancelled = True
                 await connection.send(
@@ -84,7 +84,7 @@ async def websocket_research_endpoint(websocket: WebSocket):
                     },
                 )
                 continue
-            
+
             if message_type != WSMessageType.QUERY.value:
                 await connection.send(
                     WSMessageType.ERROR,
@@ -93,7 +93,7 @@ async def websocket_research_endpoint(websocket: WebSocket):
                     },
                 )
                 continue
-            
+
             if connection.task and not connection.task.done():
                 await connection.send(
                     WSMessageType.ERROR,
@@ -102,15 +102,15 @@ async def websocket_research_endpoint(websocket: WebSocket):
                     },
                 )
                 continue
-            
+
             request = WSResearchRequest.model_validate(payload.get("data") or {})
             connection.cancelled = False
             connection.task = asyncio.create_task(
                 _run_research_for_connection(connection, request)
             )
-            
+
     except WebSocketDisconnect:
         connection.disconnected = True
-        
+
     finally:
         connection.disconnected = True

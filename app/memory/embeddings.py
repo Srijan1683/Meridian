@@ -1,8 +1,7 @@
-from openai import AsyncOpenAI
 import tiktoken
+from openai import AsyncOpenAI
 
 from app.config import settings
-
 
 MAX_EMBEDDING_TOKENS = 8191
 CHUNK_OVERLAP_TOKENS = 100

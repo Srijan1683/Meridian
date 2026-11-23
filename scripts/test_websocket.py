@@ -17,13 +17,14 @@ async def main():
                 }
             )
         )
-        
+
         async for message in websocket:
             data = json.loads(message)
             print(json.dumps(data, indent=2))
-            
+
             if data["type"] in {"done", "error"}:
                 break
-            
+
+
 if __name__ == "__main__":
     asyncio.run(main())

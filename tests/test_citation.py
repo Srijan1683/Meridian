@@ -1,6 +1,7 @@
-import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
+
+import pytest
 
 from app.models.sources import Source, SourceType
 from app.services.citation_service import (
@@ -22,7 +23,7 @@ def sample_sources():
             snippet="First source snippet",
             source_type=SourceType.WEB,
             search_query="test",
-            retrieved_at=datetime.utcnow(),
+            retrieved_at=datetime.now(UTC),
         ),
         Source(
             source_id=uuid4(),
@@ -32,7 +33,7 @@ def sample_sources():
             snippet="Second source snippet",
             source_type=SourceType.WEB,
             search_query="test",
-            retrieved_at=datetime.utcnow(),
+            retrieved_at=datetime.now(UTC),
         ),
     ]
 
@@ -89,7 +90,7 @@ def test_limit_citations_per_paragraph_keeps_three_most_relevant():
             snippet=snippet,
             source_type=SourceType.WEB,
             search_query="fluid mechanics",
-            retrieved_at=datetime.utcnow(),
+            retrieved_at=datetime.now(UTC),
         )
         for index, (title, snippet) in enumerate(
             [
