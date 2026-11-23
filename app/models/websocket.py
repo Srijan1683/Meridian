@@ -1,8 +1,8 @@
+from datetime import UTC, datetime
 from enum import Enum
+from uuid import UUID
 
 from pydantic import BaseModel
-from datetime import datetime, timezone
-from uuid import UUID
 
 from app.models.research import ResearchMode
 from app.models.sources import Source
@@ -31,13 +31,13 @@ class WSMessage(BaseModel):
     type: WSMessageType
     data: dict
     timestamp: datetime
-    
+
 
 def ws_message(message_type: WSMessageType, data: dict) -> dict:
     return {
         "type": message_type.value,
         "data": data,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 

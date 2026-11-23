@@ -10,7 +10,7 @@ async def web_search_tool(
         query=query,
         deep=mode == ResearchMode.DEEP,
     )
-    
+
     return {
         "answer": result.answer,
         "sources": [source.model_dump() for source in result.sources],

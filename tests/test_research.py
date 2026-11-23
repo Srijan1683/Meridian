@@ -1,7 +1,7 @@
 import pytest
 
-import app.services.research_service as research_service
 from app.models.research import ResearchMode, ResearchRequest
+from app.services import research_service
 
 
 @pytest.mark.asyncio
@@ -32,7 +32,7 @@ async def test_normal_mode_tracks_sources_citations_and_response(patch_research)
 @pytest.mark.asyncio
 async def test_normal_mode_updates_short_term_memory(patch_research):
     state = patch_research
-    
+
     result = await research_service.run_research(
         ResearchRequest(
             query="What changed in reusable rockets?",
@@ -41,5 +41,10 @@ async def test_normal_mode_updates_short_term_memory(patch_research):
     )
 
     assert state["short_term_memories"]
-    assert state["short_term_memories"][0]["metadata"]["session_id"] == str(result.session_id)
-    assert "What changed in reusable rockets?" in state["short_term_memories"][0]["content"]
+    assert state["short_term_memories"][0]["metadata"]["session_id"] == str(
+        result.session_id
+    )
+    assert (
+        "What changed in reusable rockets?"
+        in state["short_term_memories"][0]["content"]
+    )

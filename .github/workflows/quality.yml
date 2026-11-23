@@ -1,0 +1,36 @@
+name: Quality checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Test
+        run: pytest -q
+        env:
+          OPENAI_API_KEY: test-openai-key
+          TAVILY_API_KEY: test-tavily-key
+          CHROMA_API_KEY: ""
+          CHROMA_TENANT: ""
+          CHROMA_DATABASE: ""

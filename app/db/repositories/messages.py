@@ -11,7 +11,7 @@ async def create_message(
     token_count: int = 0,
 ) -> dict:
     pool = await get_pool()
-    
+
     row = await pool.fetchrow(
         """
         INSERT INTO conversation_history (
@@ -28,13 +28,13 @@ async def create_message(
         content,
         token_count,
     )
-    
+
     return dict(row)
 
 
 async def list_session_messages(session_id: UUID) -> list[dict]:
     pool = await get_pool()
-    
+
     rows = await pool.fetch(
         """
         SELECT message_id, session_id, role, content, token_count, created_at
@@ -44,13 +44,13 @@ async def list_session_messages(session_id: UUID) -> list[dict]:
         """,
         session_id,
     )
-    
+
     return [dict(row) for row in rows]
 
 
 async def count_session_messages(session_id: UUID) -> int:
     pool = await get_pool()
-    
+
     return await pool.fetchval(
         """
         SELECT COUNT(*)
@@ -63,7 +63,7 @@ async def count_session_messages(session_id: UUID) -> int:
 
 async def get_latest_assistant_message(session_id: UUID) -> dict | None:
     pool = await get_pool()
-    
+
     row = await pool.fetchrow(
         """
         SELECT message_id, session_id, role, content, token_count, created_at
@@ -75,5 +75,5 @@ async def get_latest_assistant_message(session_id: UUID) -> dict | None:
         """,
         session_id,
     )
-    
+
     return dict(row) if row else None

@@ -6,7 +6,7 @@ from app.memory.summarizer import summarize_session
 
 async def main() -> None:
     session_id = uuid4()
-    
+
     messages = [
         {
             "role": "user",
@@ -31,25 +31,25 @@ async def main() -> None:
             ),
         },
     ]
-    
+
     summary = await summarize_session(
         session_id=session_id,
         messages=messages,
     )
-    
+
     print(summary.model_dump_json(indent=2))
-    
+
     if not summary.summary:
         raise RuntimeError("Expected summary text.")
-    
+
     if not summary.key_topics:
         raise RuntimeError("Expected key topics.")
-    
+
     if not summary.key_findings:
         raise RuntimeError("Expected key findings.")
-    
+
     print("\nSummarizer smoke test passed.")
-    
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,15 +1,16 @@
-from typing import Literal
+from datetime import datetime
 from enum import Enum
+from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel
-from uuid import UUID
-from datetime import datetime
 
 
 class MemoryType(str, Enum):
     SHORT_TERM = "short_term"
     LONG_TERM = "long_term"
-    
+
+
 class MemoryEntry(BaseModel):
     memory_id: UUID
     memory_type: MemoryType
@@ -18,13 +19,16 @@ class MemoryEntry(BaseModel):
     metadata: dict
     similarity_score: float | None = None
     created_at: datetime
-    
+
+
 class MemoryContext(BaseModel):
     short_term_retrieved: int
     long_term_retrieved: int
     memories: list[MemoryEntry]
     retrieval_time_ms: int
-    
+    context: str = ""
+
+
 class SessionSummary(BaseModel):
     session_id: UUID
     summary: str
@@ -33,7 +37,8 @@ class SessionSummary(BaseModel):
     sources_referenced: list[str]
     unresolved_questions: list[str] = []
     generated_at: datetime
-    
+
+
 class MemoryJobStatus(BaseModel):
     session_id: UUID
     job_id: UUID

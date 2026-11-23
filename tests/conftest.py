@@ -1,11 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
-import app.services.research_service as research_service
 from app.models.research import TokenBudget
 from app.models.sources import SearchResponse, SearchResult, SourceType
+from app.services import research_service
 
 
 @pytest.fixture
@@ -31,8 +31,8 @@ def patch_research(monkeypatch, research_state):
             "session_id": sid,
             "title": title,
             "status": "active",
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
             "ended_at": None,
         }
         research_state["sessions"][sid] = row
@@ -45,7 +45,7 @@ def patch_research(monkeypatch, research_state):
             "role": role.value if hasattr(role, "value") else role,
             "content": content,
             "token_count": token_count,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
         research_state["messages"].append(row)
         return row
@@ -61,7 +61,7 @@ def patch_research(monkeypatch, research_state):
                 "snippet": source.snippet,
                 "source_type": source.source_type.value,
                 "search_query": search_query,
-                "retrieved_at": datetime.now(timezone.utc),
+                "retrieved_at": datetime.now(UTC),
                 "credibility_note": None,
             }
             rows.append(row)
@@ -143,7 +143,7 @@ def patch_research(monkeypatch, research_state):
             memory["summary"] for memory in matches
         )
         return context, len(matches)
-    
+
     async def fake_retrieve_session_memories(
         session_id,
         query,
@@ -155,17 +155,15 @@ def patch_research(monkeypatch, research_state):
             for memory in research_state["short_term_memories"]
             if memory["metadata"]["session_id"] == str(session_id)
         ][:limit]
-        
-        
+
     def fake_format_session_memory_context(memories):
         if not memories:
             return ""
-        
+
         return "Relevant context from this session:\n" + "\n".join(
             memory["content"] for memory in memories
         )
-        
-    
+
     async def fake_store_interaction_memory(
         session_id,
         query,
@@ -174,7 +172,7 @@ def patch_research(monkeypatch, research_state):
         topic_tags=None,
     ):
         memory_id = str(uuid4())
-        
+
         research_state["short_term_memories"].append(
             {
                 "memory_id": memory_id,
@@ -188,9 +186,8 @@ def patch_research(monkeypatch, research_state):
                 "similarity_score": 0.95,
             }
         )
-        
+
         return memory_id
-        
 
     monkeypatch.setattr(research_service, "create_session", fake_create_session)
     monkeypatch.setattr(research_service, "create_message", fake_create_message)
@@ -205,16 +202,18 @@ def patch_research(monkeypatch, research_state):
         fake_create_source_citations,
     )
     monkeypatch.setattr(research_service, "search_web", fake_search_web)
-    monkeypatch.setattr(research_service, "synthesize_response", fake_synthesize_response)
+    monkeypatch.setattr(
+        research_service, "synthesize_response", fake_synthesize_response
+    )
     monkeypatch.setattr(
         research_service,
         "build_long_term_context",
         fake_build_long_term_context,
     )
     monkeypatch.setattr(
-    research_service,
-    "retrieve_session_memories",
-    fake_retrieve_session_memories,
+        research_service,
+        "retrieve_session_memories",
+        fake_retrieve_session_memories,
     )
     monkeypatch.setattr(
         research_service,

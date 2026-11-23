@@ -8,7 +8,7 @@ async def create_session(
     title: str | None = None,
 ) -> dict:
     pool = await get_pool()
-    
+
     if session_id:
         row = await pool.fetchrow(
             """
@@ -31,13 +31,13 @@ async def create_session(
             """,
             title,
         )
-    
+
     return dict(row)
 
 
 async def end_session(session_id: UUID) -> dict | None:
     pool = await get_pool()
-    
+
     row = await pool.fetchrow(
         """
         UPDATE sessions
@@ -49,13 +49,13 @@ async def end_session(session_id: UUID) -> dict | None:
         """,
         session_id,
     )
-    
+
     return dict(row) if row else None
 
 
 async def list_timed_out_sessions(timeout_minutes: int = 30) -> list[dict]:
     pool = await get_pool()
-    
+
     rows = await pool.fetch(
         """
         SELECT *
@@ -65,5 +65,5 @@ async def list_timed_out_sessions(timeout_minutes: int = 30) -> list[dict]:
         """,
         timeout_minutes,
     )
-    
+
     return [dict(row) for row in rows]

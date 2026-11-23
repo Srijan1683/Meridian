@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
-import app.services.research_service as research_service
-import app.workers.memory_worker as memory_worker
 from app.models.research import ResearchMode, ResearchRequest
+from app.services import research_service
+from app.workers import memory_worker
 
 
 @pytest.mark.asyncio
@@ -28,7 +28,7 @@ async def test_long_term_memory_surfaces_in_next_session(monkeypatch, patch_rese
     async def fake_end_session(session_id):
         session = state["sessions"][session_id]
         session["status"] = "ended"
-        session["ended_at"] = datetime.now(timezone.utc)
+        session["ended_at"] = datetime.now(UTC)
         return session
 
     async def fake_create_memory_job(session_id):
@@ -54,9 +54,7 @@ async def test_long_term_memory_surfaces_in_next_session(monkeypatch, patch_rese
                 "quantum error correction matters."
             ),
             key_topics=["quantum computing", "quantum error correction"],
-            key_findings=[
-                "Quantum states are fragile and require error correction."
-            ],
+            key_findings=["Quantum states are fragile and require error correction."],
             sources_referenced=["https://example.com/source-1"],
             unresolved_questions=[],
         )
@@ -129,6 +127,7 @@ async def test_long_term_memory_surfaces_in_next_session(monkeypatch, patch_rese
         "complete_memory_job",
         fake_complete_memory_job,
     )
+
     async def fake_session_is_worth_summarizing(session_id):
         return True
 
@@ -162,4 +161,7 @@ async def test_long_term_memory_surfaces_in_next_session(monkeypatch, patch_rese
     )
 
     assert result2.memory_context.long_term_retrieved == 1
-    assert "Prior research says quantum computing needs error correction" in result2.response
+    assert (
+        "Prior research says quantum computing needs error correction"
+        in result2.response
+    )
